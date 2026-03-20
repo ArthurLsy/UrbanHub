@@ -15,14 +15,14 @@ Already a pro? Just edit this README.md and make it your own. Want to make it ea
 
 ```
 cd existing_repo
-git remote add origin https://gitlab.com/eadl/urbanhub.git
+git remote add origin https://gitlab.com/ALIX-Lubin/UrbanHub.git
 git branch -M main
 git push -uf origin main
 ```
 
 ## Integrate with your tools
 
-* [Set up project integrations](https://gitlab.com/eadl/urbanhub/-/settings/integrations)
+* [Set up project integrations](https://gitlab.com/ALIX-Lubin/UrbanHub/-/settings/integrations)
 
 ## Collaborate with your team
 
