@@ -1,0 +1,21 @@
+stages:
+  - build
+  - test
+
+build:
+  stage: build
+  image: gradle:8.11
+  script:
+    - ./gradlew assemble
+  artifacts:
+    paths:
+      - build/
+
+test:
+  stage: test
+  image: gradle:8.11
+  script:
+    - ./gradlew test
+  artifacts:
+    paths:
+      - build/reports/tests/test/
