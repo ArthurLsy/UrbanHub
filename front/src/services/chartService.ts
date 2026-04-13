@@ -1,12 +1,7 @@
 import axios from 'axios'
+import type { Mesure } from '../types'
 
-export type ChartData = {
-  // TODO: typer selon la réponse du backend
-  labels: string[]
-  values: number[]
-}
-
-export const fetchChartData = async (): Promise<ChartData> => {
-  const { data } = await axios.get<ChartData>('http://localhost:8080/api/chart')
+export const fetchMesures = async (): Promise<Mesure[]> => {
+  const { data } = await axios.get<Mesure[]>('http://localhost:8080/api/mesures')
   return data
 }

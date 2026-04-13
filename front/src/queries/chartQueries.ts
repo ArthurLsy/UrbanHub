@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { fetchChartData } from '../services/chartService'
+import { fetchMesures } from '../services/chartService'
 
-export const useChartData = () => {
+export const useMesures = () => {
   return useQuery({
-    queryKey: ['chart'],
-    queryFn: fetchChartData,
+    queryKey: ['mesures'],
+    queryFn: fetchMesures,
   })
 }
