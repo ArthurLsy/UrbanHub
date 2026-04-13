@@ -4,6 +4,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
 import caensup.eadl.urbanhub.ingest.api.dto.IngestMeasureJSON;
+import caensup.eadl.urbanhub.types.measures.MeasureFactory;
+import caensup.eadl.urbanhub.types.measures.Measure;
 
 import jakarta.validation.Valid;
 
@@ -12,7 +14,11 @@ import jakarta.validation.Valid;
 public class MeasureService {
 
 	public void ingestMeasure(@Valid IngestMeasureJSON ingestMeasureJSON) {
+
+		Measure measure = MeasureFactory.from(ingestMeasureJSON);
+
+		measure.validate();
 		// Si la méthode est appelée depuis un autre bean Spring, @Valid déclenche la validation.
-		System.out.println(ingestMeasureJSON);
+		System.out.println(measure);
 	}
 }

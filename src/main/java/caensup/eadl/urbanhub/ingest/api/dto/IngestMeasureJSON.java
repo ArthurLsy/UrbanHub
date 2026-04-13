@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 
 public record IngestMeasureJSON(
 		@NotBlank String sensor_id,
+		@NotBlank String type,
 		@NotBlank String timestamp,
 		String location,
 		@NotNull Double value,

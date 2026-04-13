@@ -13,6 +13,13 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+	@ExceptionHandler(InvalidMeasureException.class)
+	public ResponseEntity<ProblemDetail> handleInvalidMeasure(InvalidMeasureException ex) {
+		ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+		detail.setTitle("Mesure invalide");
+		return ResponseEntity.unprocessableEntity().body(detail);
+	}
+
 	@ExceptionHandler(CapteurNotFoundException.class)
 	public ResponseEntity<ProblemDetail> handleCapteurNotFound(CapteurNotFoundException ex) {
 		ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
