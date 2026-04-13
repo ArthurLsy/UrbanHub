@@ -1,7 +1,12 @@
-import { Button } from "./components/ui/button";
+import { Navbar } from "./components/Navbar";
 
 function App() {
-  return <Button>Test</Button>;
+  return (
+    <>
+      <Navbar />
+      <main className="pt-14" />
+    </>
+  );
 }
 
 export default App;
