@@ -1,0 +1,7 @@
+deploy_job:
+  stage: deploy
+  image: alpine:latest
+  rules:
+    - if: $CI_COMMIT_BRANCH == "dev"
+  script:
+    - ssh -p 7818 $SERVER_USER@$SERVER_IP "cd /home/user/UrbanHub  && git pull origin dev"
