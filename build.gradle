@@ -30,9 +30,6 @@ tasks.named('test') {
 	useJUnitPlatform()
 }
 
-plugins {
-}
-
 sonar {
   properties {
     property "sonar.projectKey", "caensup_urbanhub"
