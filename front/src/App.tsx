@@ -1,21 +1,29 @@
-import "./App.css";
-import DataGraph from "./components/DataGraph";
-import type { Mesure } from "./types";
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import Sidebar from './components/Sidebar'
+import MesuresPage from './pages/MesuresPage'
+import ZonesPage from './pages/ZonesPage'
+import CapteursPage from './pages/CapteursPage'
+import CapteurDetailPage from './pages/CapteurDetailPage'
+import TypesCapteurPage from './pages/TypesCapteurPage'
 
 function App() {
-  const data: Mesure[] = [
-    { mesure_id: "1", horodatage: "2026-04-01", capteur_id: "C1", valeur: 22.5, unite: "°C" },
-    { mesure_id: "2", horodatage: "2026-04-02", capteur_id: "C1", valeur: 23.1, unite: "°C" },
-    { mesure_id: "3", horodatage: "2026-04-03", capteur_id: "C1", valeur: 21.8, unite: "°C" },
-    { mesure_id: "4", horodatage: "2026-04-04", capteur_id: "C1", valeur: 24.2, unite: "°C" },
-    { mesure_id: "5", horodatage: "2026-04-05", capteur_id: "C1", valeur: 25.0, unite: "°C" },
-  ];
-
   return (
-    <>
-      <DataGraph data={data} />
-    </>
-  );
+    <BrowserRouter>
+      <div className="flex min-h-screen w-full">
+        <Sidebar />
+        <main className="flex-1 bg-[#0d0f14] p-8 overflow-y-auto">
+          <Routes>
+            <Route path="/" element={<Navigate to="/mesures" replace />} />
+            <Route path="/mesures" element={<MesuresPage />} />
+            <Route path="/zones" element={<ZonesPage />} />
+            <Route path="/capteurs" element={<CapteursPage />} />
+            <Route path="/capteurs/:id" element={<CapteurDetailPage />} />
+            <Route path="/types-capteur" element={<TypesCapteurPage />} />
+          </Routes>
+        </main>
+      </div>
+    </BrowserRouter>
+  )
 }
 
-export default App;
+export default App

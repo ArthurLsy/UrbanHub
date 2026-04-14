@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { fetchMesures, fetchMesureById } from '../services/mesureService'
+import { fetchMesures, fetchMesureById, fetchMesuresByCapteurId } from '../services/mesureService'
 
 export const useMesures = () => {
   return useQuery({
@@ -12,5 +12,12 @@ export const useMesureById = (id: string) => {
   return useQuery({
     queryKey: ['mesures', id],
     queryFn: () => fetchMesureById(id),
+  })
+}
+
+export const useMesuresByCapteur = (capteurId: string) => {
+  return useQuery({
+    queryKey: ['mesures', 'capteur', capteurId],
+    queryFn: () => fetchMesuresByCapteurId(capteurId),
   })
 }
