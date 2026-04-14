@@ -6,6 +6,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -128,6 +129,13 @@ class MeasureControllerTest {
                         .param("from", "invalid")
                         .param("to", "2026-04-30"))
                 .andExpect(status().isBadRequest());
+    }
+
+
+    @Test
+    void postMeasuresShouldReturnMethodNotAllowed() throws Exception {
+        mockMvc.perform(post("/api/measures"))
+                .andExpect(status().isMethodNotAllowed());
     }
 
     private MeasureDto buildDto() {
