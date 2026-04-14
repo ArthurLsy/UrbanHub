@@ -149,8 +149,7 @@ class MeasureIngestServiceImplTest {
         when(sensorRepository.findBySensorId("CAP-NAN")).thenReturn(Optional.empty());
         when(sensorTypeRepository.findBySensorTypeId("NOISE")).thenReturn(Optional.of(new SensorType()));
 
-        assertThrows(InvalidMeasureException.class, () ->
-                service.ingestMeasure(new IngestMeasureJson("CAP-NAN", "noise", "1744538100000", "abc;xyz", 50.0, "dB"))
-        );
+        IngestMeasureJson json = new IngestMeasureJson("CAP-NAN", "noise", "1744538100000", "abc;xyz", 50.0, "dB");
+        assertThrows(InvalidMeasureException.class, () -> service.ingestMeasure(json));
     }
 }
