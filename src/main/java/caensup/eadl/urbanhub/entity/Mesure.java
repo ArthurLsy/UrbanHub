@@ -1,37 +1,35 @@
 package caensup.eadl.urbanhub.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.util.UUID;
-import java.time.OffsetDateTime;
 
+/**
+ * Entité TimescaleDB.
+ * La clé primaire composite (horodatage, capteur_uuid) est définie dans {@link MesureId}.
+ * TimescaleDB partitionne automatiquement la table par "horodatage".
+ */
 @Entity
 @Table(name = "mesure")
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
 public class Mesure {
 
-    @Id
-    @Column(name = "uuid", columnDefinition = "UUID")
-    private UUID uuid = UUID.randomUUID();
+    @EmbeddedId
+    private MesureId id;
 
-    @Column(name = "mesure_id", nullable = false)
-    private String mesureId;
-
-    @Column(name = "horodatage", nullable = false, columnDefinition = "TIMESTAMPTZ")
-    private OffsetDateTime horodatage;
+    /**
+     * Lie le champ capteurUuid de la clé composite à la FK Capteur.
+     * insertable/updatable = false car la colonne est déjà gérée par @EmbeddedId.
+     */
+    @MapsId("capteurUuid")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "capteur_uuid", insertable = false, updatable = false)
+    private Capteur capteur;
 
     @Column(name = "valeur", nullable = false)
     private Float valeur;
 
     @Column(name = "unite", nullable = false)
     private String unite;
-
-    @ManyToOne
-    @JoinColumn(name = "capteur_id", nullable = false)
-    private Capteur capteur;
 }
-

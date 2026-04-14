@@ -39,9 +39,11 @@ public abstract class Measure {
 	 */
 	public abstract void validate();
 
-	/** Utilitaire partagé : rejette un timestamp absent ou dans le futur. */
+	/** Utilitaire partagé : rejette un timestamp absent ou trop dans le futur. */
 	protected void validateTimestamp() {
-		if (timestamp == null || timestamp.isAfter(Instant.now())) {
+		// Tolérance de 5 minutes pour éviter les problèmes de désynchronisation
+		// d'horloge entre l'hôte (Mac) et le conteneur Docker.
+		if (timestamp == null || timestamp.isAfter(Instant.now().plusSeconds(300))) {
 			throw new InvalidMeasureException("le timestamp est absent ou dans le futur");
 		}
 	}

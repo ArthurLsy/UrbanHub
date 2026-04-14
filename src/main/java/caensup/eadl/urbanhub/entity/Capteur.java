@@ -31,7 +31,7 @@ public class Capteur {
     private Boolean statut;
 
     @ManyToOne
-    @JoinColumn(name = "zone_id", nullable = false)
+    @JoinColumn(name = "zone_id")
     private Zone zone;
 
     @ManyToOne

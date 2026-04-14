@@ -2,14 +2,14 @@ package caensup.eadl.urbanhub.ingest.exception;
 
 public class CapteurNotFoundException extends RuntimeException {
 
-	private final Long capteurId;
+	private final String capteurId;
 
-	public CapteurNotFoundException(Long capteurId) {
+	public CapteurNotFoundException(String capteurId) {
 		super("Capteur introuvable: " + capteurId);
 		this.capteurId = capteurId;
 	}
 
-	public Long getCapteurId() {
+	public String getCapteurId() {
 		return capteurId;
 	}
 }
