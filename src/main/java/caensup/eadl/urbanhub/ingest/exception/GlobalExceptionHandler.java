@@ -28,6 +28,22 @@ public class GlobalExceptionHandler {
 		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(detail);
 	}
 
+	@ExceptionHandler(SensorTypeNotFoundException.class)
+	public ResponseEntity<ProblemDetail> handleSensorTypeNotFound(SensorTypeNotFoundException ex) {
+		ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+		detail.setTitle("Sensor type not found");
+		detail.setProperty("sensorTypeId", ex.getSensorTypeId());
+		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(detail);
+	}
+
+	@ExceptionHandler(ZoneNotFoundException.class)
+	public ResponseEntity<ProblemDetail> handleZoneNotFound(ZoneNotFoundException ex) {
+		ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+		detail.setTitle("Zone not found");
+		detail.setProperty("zoneId", ex.getZoneId());
+		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(detail);
+	}
+
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public ResponseEntity<ProblemDetail> handleValidation(MethodArgumentNotValidException ex) {
 		String message = ex.getBindingResult().getFieldErrors().stream()
