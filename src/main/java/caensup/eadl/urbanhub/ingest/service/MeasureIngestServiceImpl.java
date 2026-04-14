@@ -9,6 +9,7 @@ import caensup.eadl.urbanhub.entity.MeasureId;
 import caensup.eadl.urbanhub.entity.Sensor;
 import caensup.eadl.urbanhub.entity.SensorType;
 import caensup.eadl.urbanhub.ingest.api.dto.IngestMeasureJson;
+import caensup.eadl.urbanhub.ingest.exception.InvalidMeasureException;
 import caensup.eadl.urbanhub.repository.MeasureRepository;
 import caensup.eadl.urbanhub.repository.SensorRepository;
 import caensup.eadl.urbanhub.repository.SensorTypeRepository;
@@ -56,6 +57,7 @@ public class MeasureIngestServiceImpl implements MeasureIngestService {
                             lat = Double.parseDouble(parts[0].trim());
                             lon = Double.parseDouble(parts[1].trim());
                         } catch (NumberFormatException ignored) {
+                            throw new InvalidMeasureException("Invalid location format");
                         }
                     }
 
