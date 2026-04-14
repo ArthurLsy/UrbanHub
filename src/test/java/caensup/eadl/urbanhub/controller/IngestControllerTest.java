@@ -1,6 +1,8 @@
 package caensup.eadl.urbanhub.controller;
 
-import static org.hamcrest.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import org.springframework.http.MediaType;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -16,6 +18,8 @@ import caensup.eadl.urbanhub.repository.SensorRepository;
 import caensup.eadl.urbanhub.repository.SensorTypeRepository;
 import caensup.eadl.urbanhub.service.MeasureQueryService;
 import caensup.eadl.urbanhub.ingest.api.IngestMeasureController;
+import caensup.eadl.urbanhub.ingest.exception.GlobalExceptionHandler;
+import caensup.eadl.urbanhub.ingest.exception.InvalidMeasureException;
 import caensup.eadl.urbanhub.ingest.service.MeasureIngestServiceImpl;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -24,48 +28,73 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 
 @ExtendWith(MockitoExtension.class)
 class IngestControllerTest {
 
     @Mock
-    private MeasureRepository measureRepository;
-    private SensorRepository sensorRepository;
-    private SensorTypeRepository sensorTypeRepository;
+    private MeasureIngestServiceImpl measureIngestServiceImpl;
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new IngestMeasureController(new MeasureIngestServiceImpl(measureRepository, sensorRepository, sensorTypeRepository)))
+        mockMvc = MockMvcBuilders.standaloneSetup(new IngestMeasureController(measureIngestServiceImpl))
+                .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }
 
     @Test
-    void ingestMeasure_sensorNotFound_createsNewSensor() {
-        SensorType sensorType = new SensorType();
-        sensorType.setSensorTypeId("WEATHER");
+    void validMeasureShouldReturn200() throws Exception {
 
-        Sensor createdSensor = new Sensor();
-        createdSensor.setSensorId("sensor-999");
-        createdSensor.setSensorType(sensorType);
+        // when(measureIngestServiceImpl.ingestMeasure(any())).thenReturn(void);
 
-        when(sensorRepository.findBySensorId("sensor-999"))
-                .thenReturn(Optional.empty());
+        mockMvc.perform(post("/ingest/measures")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"sensor_id\": \"CAP-001\", \"type\": \"WEATHER\", \"timestamp\": \"1718236800000\", \"location\": \"49.1828; -0.3706\", \"value\": 18.5, \"unit\": \"°C\"}"))
+                .andExpect(status().isOk());
+    }
 
-        when(sensorTypeRepository.findBySensorTypeId("WEATHER"))
-                .thenReturn(Optional.of(sensorType));
+    @ParameterizedTest
+    @CsvSource({
+        "WEATHER, 18.5, km/h",
+        "AIR, 42.5, °C",
+        "NOISE, 65.3, μg/m3",
+        "TRAFFIC, 120.0, dB"
+    })
+    void invalidMeasureShouldReturn422(String type, Double value, String unit) throws Exception {
+        doThrow(new InvalidMeasureException("Invalid unit for type " + type))
+                .when(measureIngestServiceImpl).ingestMeasure(any());
 
-        when(sensorRepository.save(any(Sensor.class))
-                .thenReturn(createdSensor));
+        mockMvc.perform(post("/ingest/measures")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"sensor_id\": \"CAP-001\", \"type\": \"" + type + "\", \"timestamp\": \"1718236800000\", \"location\": \"49.1828; -0.3706\", \"value\": " + value + ", \"unit\": \"" + unit + "\"}"))
+                .andExpect(status().is(422));
+    }
 
+    @Test
+    void invalidMethodArgumentNotValidExceptionShouldReturn400() throws Exception {
 
+        mockMvc.perform(post("/ingest/measures")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"sensor_id\": \"CAP-001\", \"type\": \"WEATHER\", \"timestamp\": \"1718236800000\", \"location\": \"49.1828; -0.3706\", \"value\": 18.5}"))
+                .andExpect(status().is(400));
+    }
 
-        verify(sensorRepository).save(any(Sensor.class));
+    @Test
+    void invalidJsonShouldReturn400() throws Exception {
+        mockMvc.perform(post("/ingest/measures")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"sensor_id\": \"CAP-001\", \"type\": \"WEATHER\", \"timestamp\""))
+                .andExpect(status().is(400))
+                .andExpect(jsonPath("$.detail").value("Unreadable or malformed JSON body"));
     }
 
 }
