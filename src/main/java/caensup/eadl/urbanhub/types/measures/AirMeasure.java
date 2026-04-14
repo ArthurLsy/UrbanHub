@@ -4,29 +4,29 @@ import java.time.Instant;
 
 import caensup.eadl.urbanhub.ingest.exception.InvalidMeasureException;
 
-public class AirMeasure extends Measure {
+public class AirMeasure extends MeasureBase {
 
-	private static final String UNIT = "μg/m3";
+    private static final String UNIT = "μg/m3";
 
-	public AirMeasure(String sensorId, Instant timestamp, String location, Double value, String unitString) {
-		super(sensorId, timestamp, location, value, UNIT);
+    public AirMeasure(String sensorId, Instant timestamp, String location, Double value, String unitString) {
+        super(sensorId, timestamp, location, value, UNIT);
 
-		if (!UNIT.equals(unitString)) {
-			throw new InvalidMeasureException("La valeur doit être être en " + UNIT + " (reçu: " + unitString + ")");
-		}
-	}
+        if (!UNIT.equals(unitString)) {
+            throw new InvalidMeasureException("Value must be in " + UNIT + " (received: " + unitString + ")");
+        }
+    }
 
-	@Override
-	public MeasureType type() {
-		return MeasureType.AIR;
-	}
+    @Override
+    public MeasureType type() {
+        return MeasureType.AIR;
+    }
 
-	/** La qualité de l'air (ex. µg/m³) ne peut pas être négative. */
-	@Override
-	public void validate() {
-		if (value() == null || value() < 0) {
-			throw new InvalidMeasureException("la valeur de qualité de l'air doit être >= 0 (reçu: " + value() + ")");
-		}
-		validateTimestamp();
-	}
+    /** Air quality (e.g. µg/m³) cannot be negative. */
+    @Override
+    public void validate() {
+        if (value() == null || value() < 0) {
+            throw new InvalidMeasureException("air quality value must be >= 0 (received: " + value() + ")");
+        }
+        validateTimestamp();
+    }
 }

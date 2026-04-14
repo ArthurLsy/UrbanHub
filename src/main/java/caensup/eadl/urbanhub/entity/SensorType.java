@@ -8,20 +8,19 @@ import java.util.UUID;
 import java.util.List;
 
 @Entity
-@Table(name = "type_capteur")
+@Table(name = "sensor_type")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class TypeCapteur {
+public class SensorType {
 
     @Id
     @Column(name = "uuid", columnDefinition = "UUID")
     private UUID uuid = UUID.randomUUID();
 
-    @Column(name = "type_capteur_id", nullable = false)
-    private String typeCapteurId;
+    @Column(name = "sensor_type_id", nullable = false)
+    private String sensorTypeId;
 
-    @OneToMany(mappedBy = "typeCapteur", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Capteur> capteurs;
+    @OneToMany(mappedBy = "sensorType", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Sensor> sensors;
 }
-

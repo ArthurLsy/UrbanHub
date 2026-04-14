@@ -31,12 +31,11 @@ public class TimescaleDbInitializer {
     public void initHypertable() {
         try {
             jdbcTemplate.execute(
-                "SELECT create_hypertable('mesure', by_range('horodatage'), if_not_exists => TRUE)"
+                "SELECT create_hypertable('measure', by_range('timestamp'), if_not_exists => TRUE)"
             );
-            log.info("TimescaleDB : hypertable 'mesure' initialisée (ou déjà existante).");
+            log.info("TimescaleDB: hypertable 'measure' initialized (or already exists).");
         } catch (Exception e) {
-            log.warn("TimescaleDB : impossible d'initialiser la hypertable 'mesure'. " +
-                     "Vérifier que l'extension TimescaleDB est installée. Détail : {}", e.getMessage());
+            log.error("TimescaleDB: FAILED to initialize hypertable 'measure'. Measures will be stored as regular rows. Verify that the TimescaleDB extension is installed. Detail: {}", e.getMessage());
         }
     }
 }
