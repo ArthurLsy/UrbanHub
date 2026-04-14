@@ -2,7 +2,8 @@ plugins {
 	id 'java'
 	id 'org.springframework.boot' version '4.0.4'
 	id 'io.spring.dependency-management' version '1.1.7'
-	id "org.sonarqube" version "7.2.3.7755"
+	id 'jacoco'
+	id 'org.sonarqube' version '7.2.3.7755'
 }
 
 group = 'caensup.eadl'
@@ -28,6 +29,14 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+	dependsOn test
+	reports {
+		xml.required = true
+	}
 }
 
 sonar {
@@ -35,5 +44,6 @@ sonar {
 		property "sonar.projectKey", "UrbanHub"
 		property "sonar.projectName", "UrbanHub"
 		property "sonar.qualitygate.wait", true
+		property "sonar.coverage.jacoco.xmlReportPaths", "${project.layout.buildDirectory.get()}/reports/jacoco/test/jacocoTestReport.xml"
 	}
 }
