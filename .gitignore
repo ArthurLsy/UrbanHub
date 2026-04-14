@@ -36,5 +36,7 @@ out/
 ### VS Code ###
 .vscode/
 
-node_modules
+.claude
 CLAUDE.md
+
+node_modules
