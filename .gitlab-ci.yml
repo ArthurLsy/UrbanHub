@@ -2,6 +2,7 @@ stages:
   - build
   - test
   - sonar
+  - deploy
 
 variables:
   SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"  # Defines the location of the analysis task cache
@@ -62,7 +63,7 @@ deploy_job:
     - chmod 700 ~/.ssh
     - ssh-keyscan -p 7818 $SERVER_IP >> ~/.ssh/known_hosts
   script:
-    - - ssh -p 7818 $SERVER_USER@$SERVER_IP "cd /home/user/UrbanHub && git config pull.rebase false && git pull https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/ALIX-Lubin/UrbanHub.git main && docker compose build backend frontend && docker compose up -d backend frontend"
+    - ssh -p 7818 $SERVER_USER@$SERVER_IP "cd /home/user/UrbanHub && git config pull.rebase false && git pull https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/ALIX-Lubin/UrbanHub.git main && docker compose build backend frontend && docker compose up -d backend frontend"
   only:
     - main
 
