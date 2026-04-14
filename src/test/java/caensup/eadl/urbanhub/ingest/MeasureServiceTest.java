@@ -40,8 +40,7 @@ class MeasureServiceTest {
 	@DisplayName("Ingestion d'une mesure de type {0} avec unité {1} est invalide")
 	void ingestMeasureInvalid(String type, String unit) {
 		IngestMeasureJson ingestMeasureJson = new IngestMeasureJson("1234567890", type, "78976865754", "1234567890", 20.0, unit);
-		MeasureBase measure = MeasureFactory.from(ingestMeasureJson);
-		assertThrows(InvalidMeasureException.class, measure::validate);
+		assertThrows(InvalidMeasureException.class, () -> MeasureFactory.from(ingestMeasureJson));
 	}
 
 	@Test
