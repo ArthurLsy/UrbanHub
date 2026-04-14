@@ -13,5 +13,6 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    allowedHosts: ["urban-hub.sts-sio-caen.info"],
   },
 });
