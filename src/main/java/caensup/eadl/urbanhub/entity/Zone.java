@@ -22,6 +22,5 @@ public class Zone {
     private String zoneId;
 
     @OneToMany(mappedBy = "zone", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Capteur> capteurs;
+    private List<Sensor> sensors;
 }
-
