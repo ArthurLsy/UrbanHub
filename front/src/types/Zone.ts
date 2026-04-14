@@ -8,3 +8,8 @@ export type CreateZonePayload = {
   zoneId: string
   sensorIds: string[]
 }
+
+export type UpdateZonePayload = {
+  zoneId?: string
+  sensorIds?: string[]
+}

@@ -44,6 +44,14 @@ public class GlobalExceptionHandler {
 		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(detail);
 	}
 
+	@ExceptionHandler(ZoneAlreadyExistsException.class)
+	public ResponseEntity<ProblemDetail> handleZoneAlreadyExists(ZoneAlreadyExistsException ex) {
+		ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+		detail.setTitle("Zone already exists");
+		detail.setProperty("zoneId", ex.getZoneId());
+		return ResponseEntity.status(HttpStatus.CONFLICT).body(detail);
+	}
+
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public ResponseEntity<ProblemDetail> handleValidation(MethodArgumentNotValidException ex) {
 		String message = ex.getBindingResult().getFieldErrors().stream()

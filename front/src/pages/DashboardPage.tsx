@@ -18,7 +18,7 @@ const formatCount = (n: number): string => {
 }
 
 const DashboardPage = () => {
-  const { data, isLoading, isError } = useMeasures()
+  const { data } = useMeasures()
 
   const stats = useMemo(() => {
     if (!data || data.length === 0) {

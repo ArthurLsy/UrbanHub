@@ -143,7 +143,8 @@ const ComparisonChart = ({ data, height = 400, unit }: ComparisonChartProps) => 
             boxShadow: '0 4px 24px rgba(0,0,0,0.07)',
           }}
           labelStyle={{ color: '#1e293b', fontWeight: 600, marginBottom: 4 }}
-          formatter={(value: number, name: string) => [
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          formatter={(value: any, name: any) => [
             `${value}${unit ? ' ' + unit : ''}`,
             name,
           ]}

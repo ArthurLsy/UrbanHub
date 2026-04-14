@@ -1,9 +1,10 @@
 import { useMemo, useState, useEffect } from 'react'
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Popup, useMap, Circle, Polygon, Tooltip } from 'react-leaflet'
 import L from 'leaflet'
 // Import Leaflet CSS directly from JS so Vite resolves it from node_modules
 import 'leaflet/dist/leaflet.css'
 import { useMeasures } from '../queries/measureQueries'
+import { useZones } from '../queries/zoneQueries'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 
@@ -73,6 +74,34 @@ function FitBounds({ coords }: { coords: [number, number][] }) {
   return null
 }
 
+// ─── Zone shape helpers ─────────────────────────────────────────────────────
+const ZONE_COLOR = '#ef4444'
+
+function getZoneCenter(coords: [number, number][]): [number, number] {
+  const lats = coords.map(c => c[0])
+  const lons = coords.map(c => c[1])
+  return [(Math.max(...lats) + Math.min(...lats)) / 2, (Math.max(...lons) + Math.min(...lons)) / 2]
+}
+
+function getZoneRadius(coords: [number, number][]): number {
+  const [clat, clon] = getZoneCenter(coords)
+  return Math.max(...coords.map(c => Math.sqrt((c[0] - clat) ** 2 + (c[1] - clon) ** 2))) * 111000 * 1.3 + 100
+}
+
+// Returns polygon points forming a simple convex hull ring around coords
+function getHullPoints(coords: [number, number][]): [number, number][] {
+  if (coords.length === 0) return []
+  if (coords.length === 1) return coords
+  if (coords.length === 2) return coords
+  const [clat, clon] = getZoneCenter(coords)
+  const r = getZoneRadius(coords) / 111000
+  const sides = Math.max(6, coords.length)
+  return Array.from({ length: sides }, (_, i) => {
+    const angle = (2 * Math.PI * i) / sides
+    return [clat + r * Math.cos(angle), clon + r * Math.sin(angle)] as [number, number]
+  })
+}
+
 const formatDateTime = (ts: string): string => {
   const d = new Date(ts)
   if (isNaN(d.getTime())) return ts
@@ -85,29 +114,13 @@ const formatDateTime = (ts: string): string => {
   })
 }
 
-const formatTimeOnly = (ts: string): string => {
-  const d = new Date(ts)
-  if (isNaN(d.getTime())) return ''
-  return d.toLocaleTimeString('fr-FR', {
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
-const formatDateOnly = (ts: string): string => {
-  const d = new Date(ts)
-  if (isNaN(d.getTime())) return ''
-  return d.toLocaleDateString('fr-FR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  })
-}
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 const MapPage = () => {
   const { data } = useMeasures()
+  const { data: zones } = useZones()
   const [typeFilter, setTypeFilter] = useState('all')
+  const [zoneFilter, setZoneFilter] = useState('none')
 
   const sensors = useMemo(() => {
     if (!data) return []
@@ -120,6 +133,7 @@ const MapPage = () => {
       lastValue: number
       unit: string
       lastTimestamp: string
+      zoneId?: string
     }>()
 
     // Sort ascending → last write is most recent
@@ -138,18 +152,37 @@ const MapPage = () => {
         lastTimestamp: m.timestamp,
       })
     })
+    // Enrich with zone info
+    if (zones) {
+      const zoneSensorMap = new Map<string, string>()
+      zones.forEach(z => z.sensors?.forEach(s => zoneSensorMap.set(s.sensorId, z.zoneId)))
+      sorted.forEach(m => {
+        if (map.has(m.sensorId)) {
+          const s = map.get(m.sensorId)!
+          s.zoneId = zoneSensorMap.get(m.sensorId) ?? undefined
+        }
+      })
+    }
+
     return Array.from(map.values())
-  }, [data])
+  }, [data, zones])
 
   const uniqueTypes = useMemo(
     () => Array.from(new Set(sensors.map((s) => s.typeId))),
     [sensors]
   )
 
-  const filtered = useMemo(
-    () => typeFilter === 'all' ? sensors : sensors.filter((s) => s.typeId === typeFilter),
-    [sensors, typeFilter]
+  const uniqueZones = useMemo(
+    () => Array.from(new Set(sensors.filter(s => s.zoneId).map(s => s.zoneId!))),
+    [sensors]
   )
+
+  const filtered = useMemo(() => {
+    let result = typeFilter === 'all' ? sensors : sensors.filter(s => s.typeId === typeFilter)
+    if (zoneFilter === 'none') result = result.filter(s => !s.zoneId)
+    else if (zoneFilter !== 'all') result = result.filter(s => s.zoneId === zoneFilter)
+    return result
+  }, [sensors, typeFilter, zoneFilter])
 
   const coords: [number, number][] = filtered.map((s) => [s.lat, s.lng])
 
@@ -157,9 +190,9 @@ const MapPage = () => {
   const defaultCenter: [number, number] = useMemo(() => {
     if (filtered.length === 0) return [49.185, -0.360] // Caen default
     const northMost = filtered.reduce((a, b) => a.lat > b.lat ? a : b)
-    const westMost  = filtered.reduce((a, b) => a.lng < b.lng ? a : b)
+    const westMost = filtered.reduce((a, b) => a.lng < b.lng ? a : b)
     const southMost = filtered.reduce((a, b) => a.lat < b.lat ? a : b)
-    const eastMost  = filtered.reduce((a, b) => a.lng > b.lng ? a : b)
+    const eastMost = filtered.reduce((a, b) => a.lng > b.lng ? a : b)
     const centerLat = (northMost.lat + southMost.lat) / 2
     const centerLng = (westMost.lng + eastMost.lng) / 2
     return [centerLat, centerLng]
@@ -197,6 +230,25 @@ const MapPage = () => {
           </Select>
         </div>
 
+        {uniqueZones.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <label className="text-[11px] text-[#94a3b8] tracking-[0.15em] uppercase" style={{ fontFamily: 'var(--font-mono)' }}>
+              Zone
+            </label>
+            <Select value={zoneFilter} onValueChange={setZoneFilter}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Aucune" />
+              </SelectTrigger>
+              <SelectContent style={{ zIndex: 2000 }}>
+                <SelectItem value="none">Aucune</SelectItem>
+                {uniqueZones.map((z) => (
+                  <SelectItem key={z} value={z}>{z}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 20 }}>
           <Badge className="bg-[#00e5a0]/10 text-[#00b07d] border border-[#00e5a0]/30" style={{ fontFamily: 'var(--font-mono)' }}>
             {filtered.length} capteur{filtered.length > 1 ? 's' : ''}
@@ -230,6 +282,79 @@ const MapPage = () => {
           />
 
           <FitBounds coords={coords} />
+
+          {/* Zone overlays */}
+          {zones && zones.map(zone => {
+            const zoneCoords: [number, number][] = filtered
+              .filter(s => s.zoneId === zone.zoneId)
+              .map(s => [s.lat, s.lng] as [number, number])
+            if (zoneCoords.length === 0) return null
+
+            const count = zoneCoords.length
+            const [clat, clon] = getZoneCenter(zoneCoords)
+            const radius = getZoneRadius(zoneCoords)
+
+            const fillOpacity = count >= 4 ? 0.18 : count >= 2 ? 0.14 : 0.20
+            const commonStyle = {
+              color: ZONE_COLOR,
+              fillColor: ZONE_COLOR,
+              fillOpacity,
+              weight: count >= 4 ? 2.5 : count >= 2 ? 1.5 : 1,
+            }
+
+            return (
+              <>
+                {count === 1 ? (
+                  <Circle
+                    center={[clat, clon]}
+                    radius={radius}
+                    pathOptions={{ ...commonStyle }}
+                  >
+                    <Tooltip direction="top" offset={[0, -radius - 5]} opacity={1} sticky>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: ZONE_COLOR, fontWeight: 700, background: 'white', padding: '2px 6px', borderRadius: 4 }}>
+                        {zone.zoneId}
+                      </span>
+                    </Tooltip>
+                  </Circle>
+                ) : count === 2 ? (
+                  <Circle
+                    center={[clat, clon]}
+                    radius={radius}
+                    pathOptions={{ ...commonStyle }}
+                  >
+                    <Tooltip direction="top" offset={[0, -10]} opacity={1} sticky>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: ZONE_COLOR, fontWeight: 700 }}>
+                        {zone.zoneId}
+                      </span>
+                    </Tooltip>
+                  </Circle>
+                ) : count === 3 ? (
+                  <Circle
+                    center={[clat, clon]}
+                    radius={radius}
+                    pathOptions={{ ...commonStyle, dashArray: '6,4' }}
+                  >
+                    <Tooltip direction="top" offset={[0, -10]} opacity={1} sticky>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: ZONE_COLOR, fontWeight: 700 }}>
+                        {zone.zoneId}
+                      </span>
+                    </Tooltip>
+                  </Circle>
+                ) : (
+                  <Polygon
+                    positions={getHullPoints(zoneCoords)}
+                    pathOptions={{ ...commonStyle }}
+                  >
+                    <Tooltip direction="top" offset={[0, -10]} opacity={1} sticky>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: ZONE_COLOR, fontWeight: 700 }}>
+                        {zone.zoneId} ({count})
+                      </span>
+                    </Tooltip>
+                  </Polygon>
+                )}
+              </>
+            )
+          })}
 
           {filtered.map((sensor) => (
             <Marker
