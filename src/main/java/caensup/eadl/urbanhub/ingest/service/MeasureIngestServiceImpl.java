@@ -56,6 +56,7 @@ public class MeasureIngestServiceImpl implements MeasureIngestService {
                             lat = Double.parseDouble(parts[0].trim());
                             lon = Double.parseDouble(parts[1].trim());
                         } catch (NumberFormatException ignored) {
+                            // Malformed coordinates — keep defaults (0.0, 0.0)
                         }
                     }
 

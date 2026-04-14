@@ -18,6 +18,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -118,27 +121,11 @@ class MeasureIngestServiceImplTest {
         ));
     }
 
-    @Test
-    @DisplayName("ingestMeasure utilise 0.0 si la localisation est null")
-    void shouldDefaultToZeroCoordinatesWhenLocationIsNull() {
-        SensorType sensorType = new SensorType();
-        Sensor savedSensor = new Sensor();
-
-        when(sensorRepository.findBySensorId("CAP-NULL")).thenReturn(Optional.empty());
-        when(sensorTypeRepository.findBySensorTypeId("NOISE")).thenReturn(Optional.of(sensorType));
-        when(sensorRepository.save(any())).thenReturn(savedSensor);
-        when(measureRepository.save(any())).thenReturn(new Measure());
-
-        service.ingestMeasure(new IngestMeasureJson("CAP-NULL", "noise", "1744538100000", null, 50.0, "dB"));
-
-        verify(sensorRepository).save(argThat(s ->
-                s.getLatitude() == 0.0 && s.getLongitude() == 0.0
-        ));
-    }
-
-    @Test
-    @DisplayName("ingestMeasure utilise 0.0 si la localisation n'a pas de point-virgule")
-    void shouldDefaultToZeroCoordinatesWhenLocationHasNoSemicolon() {
+    @ParameterizedTest(name = "location={0}")
+    @NullSource
+    @ValueSource(strings = {"invalid-location", "abc;xyz"})
+    @DisplayName("ingestMeasure utilise 0.0 pour les coordonnées si la localisation est null ou invalide")
+    void shouldDefaultToZeroCoordinatesForInvalidLocation(String location) {
         SensorType sensorType = new SensorType();
         Sensor savedSensor = new Sensor();
 
@@ -147,25 +134,7 @@ class MeasureIngestServiceImplTest {
         when(sensorRepository.save(any())).thenReturn(savedSensor);
         when(measureRepository.save(any())).thenReturn(new Measure());
 
-        service.ingestMeasure(new IngestMeasureJson("CAP-BAD", "noise", "1744538100000", "invalid-location", 50.0, "dB"));
-
-        verify(sensorRepository).save(argThat(s ->
-                s.getLatitude() == 0.0 && s.getLongitude() == 0.0
-        ));
-    }
-
-    @Test
-    @DisplayName("ingestMeasure utilise 0.0 si les coordonnées ne sont pas des nombres")
-    void shouldDefaultToZeroCoordinatesWhenLocationHasNonNumericParts() {
-        SensorType sensorType = new SensorType();
-        Sensor savedSensor = new Sensor();
-
-        when(sensorRepository.findBySensorId("CAP-NAN")).thenReturn(Optional.empty());
-        when(sensorTypeRepository.findBySensorTypeId("NOISE")).thenReturn(Optional.of(sensorType));
-        when(sensorRepository.save(any())).thenReturn(savedSensor);
-        when(measureRepository.save(any())).thenReturn(new Measure());
-
-        service.ingestMeasure(new IngestMeasureJson("CAP-NAN", "noise", "1744538100000", "abc;xyz", 50.0, "dB"));
+        service.ingestMeasure(new IngestMeasureJson("CAP-BAD", "noise", "1744538100000", location, 50.0, "dB"));
 
         verify(sensorRepository).save(argThat(s ->
                 s.getLatitude() == 0.0 && s.getLongitude() == 0.0
