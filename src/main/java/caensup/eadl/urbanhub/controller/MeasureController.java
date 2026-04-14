@@ -28,4 +28,9 @@ public class MeasureController {
     public List<MeasureDto> getMeasures(@RequestParam(name = "sensor_id", required = false) String sensorId) {
         return measureQueryService.getMeasures(sensorId);
     }
+
+    @GetMapping("/count")
+    public long getCount() {
+        return measureQueryService.getCount();
+    }
 }

@@ -3,8 +3,8 @@ package caensup.eadl.urbanhub.controller;
 import caensup.eadl.urbanhub.dto.SensorTypeDto;
 import caensup.eadl.urbanhub.service.SensorTypeService;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -29,8 +29,8 @@ public class SensorTypeController {
         return sensorTypeService.getCount();
     }
 
-    @GetMapping("/{sensorTypeId}")
-    public SensorTypeDto getById(@PathVariable String sensorTypeId) {
+    @GetMapping("/by-id")
+    public SensorTypeDto getById(@RequestParam(name = "sensor_type_id") String sensorTypeId) {
         return sensorTypeService.getById(sensorTypeId);
     }
 }

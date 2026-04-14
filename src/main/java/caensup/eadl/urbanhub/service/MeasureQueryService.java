@@ -25,6 +25,11 @@ public class MeasureQueryService {
      * Retrieves measures with optional filtering by sensor functional identifier.
      */
     @Transactional(readOnly = true)
+    public long getCount() {
+        return measureRepository.count();
+    }
+
+    @Transactional(readOnly = true)
     public List<MeasureDto> getMeasures(String sensorId) {
         List<Measure> measures = sensorId == null || sensorId.isBlank()
                 ? measureRepository.findAll()
