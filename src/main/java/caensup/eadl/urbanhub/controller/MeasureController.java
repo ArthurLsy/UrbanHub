@@ -21,6 +21,7 @@ public class MeasureController {
     public MeasureController(MeasureQueryService measureQueryService) {
         this.measureQueryService = measureQueryService;
     }
+    
 
     /**
      * Returns the list of measures, with optional filtering by sensor functional identifier.
