@@ -1,16 +1,13 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { useCapteurById } from '../queries/capteurQueries'
-import { useMesuresByCapteur } from '../queries/mesureQueries'
+import { useMeasuresBySensor } from '../queries/measureQueries'
 import DataGraph from '../components/DataGraph'
 
-const CapteurDetailPage = () => {
+const SensorDetailPage = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
-  const { data: capteur, isLoading: capteurLoading } = useCapteurById(id!)
-  const { data: mesures, isLoading: mesuresLoading, isError } = useMesuresByCapteur(id!)
-
-  const isLoading = capteurLoading || mesuresLoading
+  const { data, isLoading, isError } = useMeasuresBySensor(id!)
+  const sensor = data?.[0]
 
   return (
     <div>
@@ -30,20 +27,26 @@ const CapteurDetailPage = () => {
           Relevés du capteur
         </p>
         <h1 style={{ fontFamily: 'var(--font-display)' }} className="text-4xl font-bold tracking-wider text-white uppercase">
-          {capteur ? capteur.capteur_id : id}
+          {id}
         </h1>
         <div className="mt-3 h-px w-16 bg-[#00e5a0]" />
 
-        {capteur && (
+        {sensor && (
           <div className="mt-4 flex items-center gap-6">
             <div className="flex items-center gap-2">
-              <span className={['w-2 h-2 rounded-full', capteur.statut ? 'bg-[#00e5a0] animate-pulse' : 'bg-[#3d4455]'].join(' ')} />
-              <span style={{ fontFamily: 'var(--font-mono)' }} className={['text-[11px] tracking-widest uppercase', capteur.statut ? 'text-[#00e5a0]' : 'text-[#3d4455]'].join(' ')}>
-                {capteur.statut ? 'Actif' : 'Inactif'}
+              <span className={['w-2 h-2 rounded-full', sensor.sensorStatus ? 'bg-[#00e5a0] animate-pulse' : 'bg-[#3d4455]'].join(' ')} />
+              <span style={{ fontFamily: 'var(--font-mono)' }} className={['text-[11px] tracking-widest uppercase', sensor.sensorStatus ? 'text-[#00e5a0]' : 'text-[#3d4455]'].join(' ')}>
+                {sensor.sensorStatus ? 'Actif' : 'Inactif'}
               </span>
             </div>
             <span style={{ fontFamily: 'var(--font-mono)' }} className="text-[11px] text-[#3d4455] tracking-widest">
-              {capteur.latitude}, {capteur.longitude}
+              {sensor.latitude}, {sensor.longitude}
+            </span>
+            <span style={{ fontFamily: 'var(--font-mono)' }} className="text-[11px] text-[#3d4455] tracking-widest">
+              Zone : {sensor.zoneId}
+            </span>
+            <span style={{ fontFamily: 'var(--font-mono)' }} className="text-[11px] text-[#3d4455] tracking-widest">
+              Type : {sensor.sensorTypeId}
             </span>
           </div>
         )}
@@ -60,10 +63,10 @@ const CapteurDetailPage = () => {
             Erreur de connexion au backend.
           </p>
         )}
-        {mesures && <DataGraph data={mesures} />}
+        {data && <DataGraph data={data} />}
       </div>
     </div>
   )
 }
 
-export default CapteurDetailPage
+export default SensorDetailPage

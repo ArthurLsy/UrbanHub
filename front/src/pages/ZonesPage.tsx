@@ -1,7 +1,13 @@
-import { useZones } from '../queries/zoneQueries'
+import { useMemo } from 'react'
+import { useMeasures } from '../queries/measureQueries'
 
 const ZonesPage = () => {
-  const { data, isLoading, isError } = useZones()
+  const { data, isLoading, isError } = useMeasures()
+
+  const zones = useMemo(() => {
+    if (!data) return []
+    return Array.from(new Set(data.map((m) => m.zoneId)))
+  }, [data])
 
   return (
     <div>
@@ -28,16 +34,16 @@ const ZonesPage = () => {
         )}
         {data && (
           <ul className="flex flex-col gap-2">
-            {data.map((zone) => (
+            {zones.map((zoneId) => (
               <li
-                key={zone.zone_id}
+                key={zoneId}
                 className="flex items-center justify-between px-4 py-3 rounded border border-[#1e2230] hover:border-[#00e5a0]/30 hover:bg-[#00e5a0]/5 transition-all duration-150"
               >
                 <span style={{ fontFamily: 'var(--font-display)' }} className="text-sm font-semibold tracking-wider text-white uppercase">
-                  {zone.libelle}
+                  {zoneId}
                 </span>
                 <span style={{ fontFamily: 'var(--font-mono)' }} className="text-[10px] text-[#3d4455] tracking-widest">
-                  {zone.zone_id}
+                  {data.filter((m) => m.zoneId === zoneId).length} mesure(s)
                 </span>
               </li>
             ))}

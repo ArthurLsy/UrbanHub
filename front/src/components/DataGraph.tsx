@@ -1,20 +1,19 @@
-import { LineChart, CartesianGrid, Line, XAxis, YAxis, Tooltip } from "recharts";
-import type { Mesure } from "../types";
+import { LineChart, CartesianGrid, Line, XAxis, YAxis, Tooltip } from 'recharts'
+import type { Measure } from '../types'
 
-const DataGraph = ({ data }: { data: Mesure[] }) => {
+const DataGraph = ({ data }: { data: Measure[] }) => {
   return (
     <LineChart
-      style={{ width: "100%", aspectRatio: 1.618, maxWidth: 600 }}
-      responsive
+      style={{ width: '100%', aspectRatio: 1.618, maxWidth: 600 }}
       data={data}
     >
       <CartesianGrid />
-      <XAxis dataKey="horodatage" />
-      <YAxis dataKey="valeur" />
+      <XAxis dataKey="timestamp" />
+      <YAxis dataKey="value" />
       <Tooltip />
-      <Line dataKey="valeur" stroke="#8884d8" />
+      <Line dataKey="value" stroke="#00e5a0" dot={false} />
     </LineChart>
-  );
-};
+  )
+}
 
-export default DataGraph;
+export default DataGraph

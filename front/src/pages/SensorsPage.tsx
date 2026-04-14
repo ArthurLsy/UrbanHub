@@ -1,8 +1,28 @@
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { useCapteurs } from '../queries/capteurQueries'
+import { useMeasures } from '../queries/measureQueries'
+import type { Sensor } from '../types'
 
-const CapteursPage = () => {
-  const { data, isLoading, isError } = useCapteurs()
+const SensorsPage = () => {
+  const { data, isLoading, isError } = useMeasures()
+
+  const sensors = useMemo<Sensor[]>(() => {
+    if (!data) return []
+    const map = new Map<string, Sensor>()
+    data.forEach((m) => {
+      if (!map.has(m.sensorId)) {
+        map.set(m.sensorId, {
+          sensorId: m.sensorId,
+          latitude: m.latitude,
+          longitude: m.longitude,
+          sensorStatus: m.sensorStatus,
+          zoneId: m.zoneId,
+          sensorTypeId: m.sensorTypeId,
+        })
+      }
+    })
+    return Array.from(map.values())
+  }, [data])
 
   return (
     <div>
@@ -29,21 +49,21 @@ const CapteursPage = () => {
         )}
         {data && (
           <ul className="flex flex-col gap-2">
-            {data.map((capteur) => (
-              <li key={capteur.capteur_id}>
+            {sensors.map((sensor) => (
+              <li key={sensor.sensorId}>
                 <Link
-                  to={`/capteurs/${capteur.capteur_id}`}
+                  to={`/capteurs/${sensor.sensorId}`}
                   className="flex items-center justify-between px-4 py-3 rounded border border-[#1e2230] hover:border-[#00e5a0]/30 hover:bg-[#00e5a0]/5 transition-all duration-150 group"
                 >
                   <div className="flex items-center gap-3">
-                    <span className={['w-1.5 h-1.5 rounded-full', capteur.statut ? 'bg-[#00e5a0]' : 'bg-[#3d4455]'].join(' ')} />
+                    <span className={['w-1.5 h-1.5 rounded-full', sensor.sensorStatus ? 'bg-[#00e5a0]' : 'bg-[#3d4455]'].join(' ')} />
                     <span style={{ fontFamily: 'var(--font-mono)' }} className="text-sm text-[#cbd5e1] tracking-wide">
-                      {capteur.capteur_id}
+                      {sensor.sensorId}
                     </span>
                   </div>
                   <div className="flex items-center gap-4">
-                    <span style={{ fontFamily: 'var(--font-mono)' }} className={['text-[11px] tracking-widest uppercase', capteur.statut ? 'text-[#00e5a0]' : 'text-[#3d4455]'].join(' ')}>
-                      {capteur.statut ? 'Actif' : 'Inactif'}
+                    <span style={{ fontFamily: 'var(--font-mono)' }} className={['text-[11px] tracking-widest uppercase', sensor.sensorStatus ? 'text-[#00e5a0]' : 'text-[#3d4455]'].join(' ')}>
+                      {sensor.sensorStatus ? 'Actif' : 'Inactif'}
                     </span>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#3d4455] group-hover:text-[#00e5a0] transition-colors">
                       <polyline points="9 18 15 12 9 6" />
@@ -59,4 +79,4 @@ const CapteursPage = () => {
   )
 }
 
-export default CapteursPage
+export default SensorsPage

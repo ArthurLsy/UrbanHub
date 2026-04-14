@@ -1,7 +1,13 @@
-import { useTypesCapteur } from '../queries/typeCapteurQueries'
+import { useMemo } from 'react'
+import { useMeasures } from '../queries/measureQueries'
 
-const TypesCapteurPage = () => {
-  const { data, isLoading, isError } = useTypesCapteur()
+const SensorTypesPage = () => {
+  const { data, isLoading, isError } = useMeasures()
+
+  const types = useMemo(() => {
+    if (!data) return []
+    return Array.from(new Set(data.map((m) => m.sensorTypeId)))
+  }, [data])
 
   return (
     <div>
@@ -28,16 +34,16 @@ const TypesCapteurPage = () => {
         )}
         {data && (
           <ul className="flex flex-col gap-2">
-            {data.map((type) => (
+            {types.map((typeId) => (
               <li
-                key={type.type_capteur_id}
+                key={typeId}
                 className="flex items-center justify-between px-4 py-3 rounded border border-[#1e2230] hover:border-[#00e5a0]/30 hover:bg-[#00e5a0]/5 transition-all duration-150"
               >
                 <span style={{ fontFamily: 'var(--font-display)' }} className="text-sm font-semibold tracking-wider text-white uppercase">
-                  {type.libelle}
+                  {typeId}
                 </span>
                 <span style={{ fontFamily: 'var(--font-mono)' }} className="text-[10px] text-[#3d4455] tracking-widest">
-                  {type.type_capteur_id}
+                  {data.filter((m) => m.sensorTypeId === typeId).length} mesure(s)
                 </span>
               </li>
             ))}
@@ -48,4 +54,4 @@ const TypesCapteurPage = () => {
   )
 }
 
-export default TypesCapteurPage
+export default SensorTypesPage

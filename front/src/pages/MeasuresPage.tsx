@@ -1,8 +1,8 @@
-import { useMesures } from '../queries/mesureQueries'
+import { useMeasures } from '../queries/measureQueries'
 import DataGraph from '../components/DataGraph'
 
-const MesuresPage = () => {
-  const { data, isLoading, isError } = useMesures()
+const MeasuresPage = () => {
+  const { data, isLoading, isError } = useMeasures()
 
   return (
     <div>
@@ -33,4 +33,4 @@ const MesuresPage = () => {
   )
 }
 
-export default MesuresPage
+export default MeasuresPage
