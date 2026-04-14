@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.lang.Nullable;
 
 /**
  * Exposes endpoints for measure consultation.
@@ -32,5 +33,17 @@ public class MeasureController {
     @GetMapping("/count")
     public long getCount() {
         return measureQueryService.getCount();
+    }
+
+    @GetMapping("/by-day")
+    public List<MeasureDto> getMeasuresByDay(@RequestParam String date) {
+        return measureQueryService.getMeasuresByDay(date);
+    }
+
+    @GetMapping("/by-date-range")
+    public List<MeasureDto> getMeasuresBetween(
+            @RequestParam String from,
+            @RequestParam String to) {
+        return measureQueryService.getMeasuresBetween(from, to);
     }
 }
