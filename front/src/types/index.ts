@@ -1,4 +1,4 @@
 export type { Measure } from './Measure'
 export type { Sensor } from './Sensor'
 export type { SensorType } from './SensorType'
-export type { Zone } from './Zone'
+export type { Zone, CreateZonePayload } from './Zone'
