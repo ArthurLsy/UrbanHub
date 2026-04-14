@@ -7,13 +7,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.springframework.boot.test.context.SpringBootTest;
 
-import caensup.eadl.urbanhub.ingest.api.dto.IngestMeasureJSON;
+import caensup.eadl.urbanhub.ingest.api.dto.IngestMeasureJson;
 import caensup.eadl.urbanhub.ingest.exception.InvalidMeasureException;
-import caensup.eadl.urbanhub.ingest.service.MeasureService;
+import caensup.eadl.urbanhub.types.measures.MeasureBase;
+import caensup.eadl.urbanhub.types.measures.MeasureFactory;
 
-@SpringBootTest
 class MeasureServiceTest {
 
 	@ParameterizedTest
@@ -25,10 +24,10 @@ class MeasureServiceTest {
 	})
 	@DisplayName("Ingestion d'une mesure de type {0} avec unité {1} est valide")
 	void ingestMeasureValid(String type, String unit) {
-		IngestMeasureJSON ingestMeasureJSON = new IngestMeasureJSON("1234567890", type, "78976865754", "1234567890", 20.0, unit);
-		MeasureService measureService = new MeasureService();
-		measureService.ingestMeasure(ingestMeasureJSON);
-		assertEquals(20.0, ingestMeasureJSON.value());
+		IngestMeasureJson ingestMeasureJson = new IngestMeasureJson("1234567890", type, "78976865754", "1234567890", 20.0, unit);
+		MeasureBase measure = MeasureFactory.from(ingestMeasureJson);
+		measure.validate();
+		assertEquals(20.0, ingestMeasureJson.value());
 	}
 
 	@ParameterizedTest
@@ -40,34 +39,31 @@ class MeasureServiceTest {
 	})
 	@DisplayName("Ingestion d'une mesure de type {0} avec unité {1} est invalide")
 	void ingestMeasureInvalid(String type, String unit) {
-		IngestMeasureJSON ingestMeasureJSON = new IngestMeasureJSON("1234567890", type, "78976865754", "1234567890", 20.0, unit);
-		MeasureService measureService = new MeasureService();
-		assertThrows(InvalidMeasureException.class, () -> measureService.ingestMeasure(ingestMeasureJSON));
+		IngestMeasureJson ingestMeasureJson = new IngestMeasureJson("1234567890", type, "78976865754", "1234567890", 20.0, unit);
+		assertThrows(InvalidMeasureException.class, () -> MeasureFactory.from(ingestMeasureJson).validate());
 	}
 
 	@Test
 	@DisplayName("Ingestion d'une mesure avec une valeur nulle est invalide")
 	void ingestMeasureNullValue() {
-		IngestMeasureJSON ingestMeasureJSON = new IngestMeasureJSON("1234567890", "weather", "78976865754", "1234567890", null, "°C");
-		MeasureService measureService = new MeasureService();
-		assertThrows(InvalidMeasureException.class, () -> measureService.ingestMeasure(ingestMeasureJSON));
+		IngestMeasureJson ingestMeasureJson = new IngestMeasureJson("1234567890", "weather", "78976865754", "1234567890", null, "°C");
+		assertThrows(InvalidMeasureException.class, () -> MeasureFactory.from(ingestMeasureJson).validate());
 	}
 
 	@Test
 	@DisplayName("Ingestion d'une mesure avec une valeur négative est valide")
 	void ingestMeasureNegativeValueValid() {
-		IngestMeasureJSON ingestMeasureJSON = new IngestMeasureJSON("1234567890", "weather", "78976865754", "1234567890", -1.0, "°C");
-		MeasureService measureService = new MeasureService();
-		measureService.ingestMeasure(ingestMeasureJSON);
-		assertEquals(-1.0, ingestMeasureJSON.value());
+		IngestMeasureJson ingestMeasureJson = new IngestMeasureJson("1234567890", "weather", "78976865754", "1234567890", -1.0, "°C");
+		MeasureBase measure = MeasureFactory.from(ingestMeasureJson);
+		measure.validate();
+		assertEquals(-1.0, ingestMeasureJson.value());
 	}
 
 	@Test
 	@DisplayName("Ingestion d'une mesure avec une valeur avec type inconnu est invalide")
 	void ingestMeasureUnknownTypeInvalid() {
-		IngestMeasureJSON ingestMeasureJSON = new IngestMeasureJSON("1234567890", "unknown", "78976865754", "1234567890", 20.0, "°C");
-		MeasureService measureService = new MeasureService();
-		assertThrows(IllegalArgumentException.class, () -> measureService.ingestMeasure(ingestMeasureJSON));
+		IngestMeasureJson ingestMeasureJson = new IngestMeasureJson("1234567890", "unknown", "78976865754", "1234567890", 20.0, "°C");
+		assertThrows(IllegalArgumentException.class, () -> MeasureFactory.from(ingestMeasureJson));
 	}
 
 }
