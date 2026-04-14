@@ -1,5 +1,6 @@
 package caensup.eadl.urbanhub.ingest.service;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.never;
@@ -10,6 +11,7 @@ import caensup.eadl.urbanhub.entity.Measure;
 import caensup.eadl.urbanhub.entity.Sensor;
 import caensup.eadl.urbanhub.entity.SensorType;
 import caensup.eadl.urbanhub.ingest.api.dto.IngestMeasureJson;
+import caensup.eadl.urbanhub.ingest.exception.InvalidMeasureException;
 import caensup.eadl.urbanhub.repository.MeasureRepository;
 import caensup.eadl.urbanhub.repository.SensorRepository;
 import caensup.eadl.urbanhub.repository.SensorTypeRepository;
@@ -123,8 +125,8 @@ class MeasureIngestServiceImplTest {
 
     @ParameterizedTest(name = "location={0}")
     @NullSource
-    @ValueSource(strings = {"invalid-location", "abc;xyz"})
-    @DisplayName("ingestMeasure utilise 0.0 pour les coordonnées si la localisation est null ou invalide")
+    @ValueSource(strings = {"invalid-location"})
+    @DisplayName("ingestMeasure utilise 0.0 pour les coordonnées si la localisation est null ou sans point-virgule")
     void shouldDefaultToZeroCoordinatesForInvalidLocation(String location) {
         SensorType sensorType = new SensorType();
         Sensor savedSensor = new Sensor();
@@ -139,5 +141,16 @@ class MeasureIngestServiceImplTest {
         verify(sensorRepository).save(argThat(s ->
                 s.getLatitude() == 0.0 && s.getLongitude() == 0.0
         ));
+    }
+
+    @Test
+    @DisplayName("ingestMeasure lève InvalidMeasureException si les coordonnées ne sont pas des nombres")
+    void shouldThrowWhenLocationHasNonNumericParts() {
+        when(sensorRepository.findBySensorId("CAP-NAN")).thenReturn(Optional.empty());
+        when(sensorTypeRepository.findBySensorTypeId("NOISE")).thenReturn(Optional.of(new SensorType()));
+
+        assertThrows(InvalidMeasureException.class, () ->
+                service.ingestMeasure(new IngestMeasureJson("CAP-NAN", "noise", "1744538100000", "abc;xyz", 50.0, "dB"))
+        );
     }
 }
