@@ -1,6 +1,8 @@
 package caensup.eadl.urbanhub.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -15,10 +17,13 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
 class MeasureQueryServiceTest {
@@ -34,6 +39,7 @@ class MeasureQueryServiceTest {
     }
 
     @Test
+    @DisplayName("getMeasures sans filtre retourne toutes les mesures")
     void getMeasuresShouldReturnAllMeasuresWhenNoFilterIsProvided() {
         Measure measure = buildMeasure();
         when(measureRepository.findAll()).thenReturn(List.of(measure));
@@ -45,6 +51,7 @@ class MeasureQueryServiceTest {
     }
 
     @Test
+    @DisplayName("getMeasures avec sensor_id filtre par capteur")
     void getMeasuresShouldFilterBySensorId() {
         Measure measure = buildMeasure();
         when(measureRepository.findBySensor_SensorId("CAP-001")).thenReturn(List.of(measure));
@@ -53,6 +60,67 @@ class MeasureQueryServiceTest {
 
         assertEquals(1, result.size());
         verify(measureRepository).findBySensor_SensorId("CAP-001");
+    }
+
+    @Test
+    @DisplayName("getCount retourne le nombre total de mesures")
+    void getCountShouldReturnRepositoryCount() {
+        when(measureRepository.count()).thenReturn(100L);
+
+        long result = measureQueryService.getCount();
+
+        assertEquals(100L, result);
+        verify(measureRepository).count();
+    }
+
+    @Test
+    @DisplayName("getMeasuresByDay interroge le repo avec début et fin de journée")
+    void getMeasuresByDayShouldQueryCorrectRange() {
+        Measure measure = buildMeasure();
+        when(measureRepository.findBetween(any(), any())).thenReturn(List.of(measure));
+
+        List<MeasureDto> result = measureQueryService.getMeasuresByDay("2026-04-13");
+
+        assertEquals(1, result.size());
+
+        ArgumentCaptor<OffsetDateTime> fromCaptor = ArgumentCaptor.forClass(OffsetDateTime.class);
+        ArgumentCaptor<OffsetDateTime> toCaptor = ArgumentCaptor.forClass(OffsetDateTime.class);
+        verify(measureRepository).findBetween(fromCaptor.capture(), toCaptor.capture());
+
+        assertEquals(0, fromCaptor.getValue().getHour());
+        assertEquals(0, fromCaptor.getValue().getMinute());
+        assertEquals(23, toCaptor.getValue().getHour());
+        assertEquals(59, toCaptor.getValue().getMinute());
+    }
+
+    @Test
+    @DisplayName("getMeasuresByDay lève 400 pour un format de date invalide")
+    void getMeasuresByDayShouldThrowBadRequestForInvalidDate() {
+        assertThrows(ResponseStatusException.class, () -> measureQueryService.getMeasuresByDay("invalid-date"));
+    }
+
+    @Test
+    @DisplayName("getMeasuresBetween interroge le repo avec la plage de dates correcte")
+    void getMeasuresBetweenShouldQueryCorrectRange() {
+        Measure measure = buildMeasure();
+        when(measureRepository.findBetween(any(), any())).thenReturn(List.of(measure));
+
+        List<MeasureDto> result = measureQueryService.getMeasuresBetween("2026-04-01", "2026-04-30");
+
+        assertEquals(1, result.size());
+
+        ArgumentCaptor<OffsetDateTime> fromCaptor = ArgumentCaptor.forClass(OffsetDateTime.class);
+        ArgumentCaptor<OffsetDateTime> toCaptor = ArgumentCaptor.forClass(OffsetDateTime.class);
+        verify(measureRepository).findBetween(fromCaptor.capture(), toCaptor.capture());
+
+        assertEquals(1, fromCaptor.getValue().getDayOfMonth());
+        assertEquals(30, toCaptor.getValue().getDayOfMonth());
+    }
+
+    @Test
+    @DisplayName("getMeasuresBetween lève 400 pour un format de date invalide")
+    void getMeasuresBetweenShouldThrowBadRequestForInvalidDate() {
+        assertThrows(ResponseStatusException.class, () -> measureQueryService.getMeasuresBetween("invalid", "2026-04-30"));
     }
 
     private Measure buildMeasure() {
