@@ -45,4 +45,11 @@ public class Sensor {
 
     @OneToMany(mappedBy = "sensor", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Measure> measures;
+
+    // Retourne la zone principale associée au capteur (si relations ManyToMany), ou null si aucune.
+    public caensup.eadl.urbanhub.entity.Zone getPrimaryZone() {
+        if (zones == null || zones.isEmpty()) return null;
+        // renvoie une zone arbitraire (première) — adapte selon vos règles métier
+        return zones.iterator().next();
+    }
 }
