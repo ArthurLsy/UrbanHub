@@ -58,13 +58,13 @@ publish_sensor() {
 }
 
 while true; do
-  TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+  TS=$(($(date -u +%s) * 1000))
 
   i=0
   while [ "$i" -lt "$SENSORS_PER_TYPE" ]; do
-    publish_sensor "air"     "$i" 0    "$(rand_float 5 80)"   "µg/m³"
+    publish_sensor "air"     "$i" 0    "$(rand_float 5 80)"   "μg/m3"
     publish_sensor "noise"   "$i" 500  "$(rand_float 30 90)"  "dB"
-    publish_sensor "traffic" "$i" 1000 "$(rand_int 0 120)"    "vehicles/min"
+    publish_sensor "traffic" "$i" 1000 "$(rand_int 0 120)"    "km/h"
     publish_sensor "weather" "$i" 1500 "$(rand_float -5 35)"  "°C"
     i=$((i + 1))
   done

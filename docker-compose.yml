@@ -27,12 +27,18 @@ services:
       SPRING_DATASOURCE_PASSWORD: urbanhub
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_JPA_SHOW_SQL: "true"
+      MQTT_ENABLED: "true"
+      MQTT_BROKER_URL: tcp://mosquitto:1883
+      MQTT_CLIENT_ID: urbanhub-backend
+      MQTT_TOPIC: urbanhub/sensors/#
     ports:
       - "8080:8080"
     volumes:
       - ./src:/app/src
     depends_on:
       db:
+        condition: service_healthy
+      mosquitto:
         condition: service_healthy
     command: ./gradlew bootRun --no-daemon
 
