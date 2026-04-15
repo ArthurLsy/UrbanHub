@@ -51,12 +51,21 @@ public class MeasureIngestServiceImpl implements MeasureIngestService {
 
                     double lat = 0.0;
                     double lon = 0.0;
-                    if (json.location() != null && json.location().contains(";")) {
+                    if (json.location() != null && json.location().contains(",")) {
+                        try {
+                            String[] parts = json.location().split(",");
+                            lat = Double.parseDouble(parts[0].trim());
+                            lon = Double.parseDouble(parts[1].trim());
+                        } catch (NumberFormatException ignored) {
+                            throw new InvalidMeasureException("Invalid location format");
+                        }
+                    } else if (json.location() != null && json.location().contains(";")) {
                         try {
                             String[] parts = json.location().split(";");
                             lat = Double.parseDouble(parts[0].trim());
                             lon = Double.parseDouble(parts[1].trim());
                         } catch (NumberFormatException ignored) {
+
                             throw new InvalidMeasureException("Invalid location format");
                         }
                     }
@@ -67,7 +76,6 @@ public class MeasureIngestServiceImpl implements MeasureIngestService {
                     newSensor.setStatus(true);
                     newSensor.setLatitude(lat);
                     newSensor.setLongitude(lon);
-                    newSensor.setZone(null);
 
                     return sensorRepository.save(newSensor);
                 });

@@ -21,11 +21,29 @@ public class MeasureController {
         this.measureQueryService = measureQueryService;
     }
 
+
     /**
      * Returns the list of measures, with optional filtering by sensor functional identifier.
      */
     @GetMapping
     public List<MeasureDto> getMeasures(@RequestParam(name = "sensor_id", required = false) String sensorId) {
         return measureQueryService.getMeasures(sensorId);
+    }
+
+    @GetMapping("/count")
+    public long getCount() {
+        return measureQueryService.getCount();
+    }
+
+    @GetMapping("/by-day")
+    public List<MeasureDto> getMeasuresByDay(@RequestParam String date) {
+        return measureQueryService.getMeasuresByDay(date);
+    }
+
+    @GetMapping("/by-date-range")
+    public List<MeasureDto> getMeasuresBetween(
+            @RequestParam String from,
+            @RequestParam String to) {
+        return measureQueryService.getMeasuresBetween(from, to);
     }
 }
