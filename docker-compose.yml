@@ -21,6 +21,11 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: urbanhub-backend
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 8080 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/urbanhub
       SPRING_DATASOURCE_USERNAME: urbanhub
@@ -49,6 +54,9 @@ services:
     container_name: urbanhub-frontend
     ports:
       - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
     volumes:
       - ./front/src:/app/src
       - ./front/package.json:/app/package.json
