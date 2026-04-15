@@ -1,6 +1,6 @@
-import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { useMeasures } from '../queries/measureQueries'
+import { useMemo } from 'react'
+import { useSensors } from '../queries/sensorQueries'
 import { Card, CardContent } from '@/components/ui/card'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 
@@ -42,16 +42,18 @@ const DEFAULT_ICON = (
 )
 
 const SensorTypesPage = () => {
-  const { data, isLoading, isError } = useMeasures()
+  const { data: sensors, isLoading: sensorsLoading, isError: sensorsError } = useSensors()
 
   const typesWithCount = useMemo(() => {
-    if (!data) return []
+    if (!sensors) return []
     const map = new Map<string, number>()
-    data.forEach((m) => {
-      map.set(m.sensorTypeId, (map.get(m.sensorTypeId) || 0) + 1)
+    sensors.forEach((s) => {
+      map.set(s.sensorTypeId, (map.get(s.sensorTypeId) || 0) + 1)
     })
-    return Array.from(map.entries()).map(([typeId, count]) => ({ typeId, count }))
-  }, [data])
+    return Array.from(map.entries())
+      .map(([typeId, count]) => ({ typeId, count }))
+      .sort((a, b) => a.typeId.localeCompare(b.typeId))
+  }, [sensors])
 
   return (
     <div>
@@ -66,17 +68,17 @@ const SensorTypesPage = () => {
         <div className="mt-4 h-1 w-20 bg-[#00e5a0]" />
       </header>
 
-      {isLoading && (
+      {sensorsLoading && (
         <p className="text-sm text-[#94a3b8] tracking-wider animate-pulse" style={{ fontFamily: 'var(--font-mono)' }}>
           Chargement...
         </p>
       )}
-      {isError && (
+      {sensorsError && (
         <p className="text-sm text-red-500 tracking-wider" style={{ fontFamily: 'var(--font-mono)' }}>
           Erreur de connexion au backend.
         </p>
       )}
-      {data && (
+      {sensors && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {typesWithCount.map(({ typeId, count }) => (
             <Link key={typeId} to={`/capteurs?type=${typeId}`}>

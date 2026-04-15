@@ -96,7 +96,7 @@ public class ZoneService {
         List<SensorDto> sensorDtos = zone.getSensors() == null ? List.of()
                 : zone.getSensors().stream()
                         .map(s -> new SensorDto(s.getUuid(), s.getSensorId(), s.getSensorType().getSensorTypeId(),
-                                s.getStatus()))
+                                s.getLatitude(), s.getLongitude(), s.getStatus(), null))
                         .toList();
         return new ZoneDto(zone.getUuid(), zone.getZoneId(), sensorDtos);
     }
