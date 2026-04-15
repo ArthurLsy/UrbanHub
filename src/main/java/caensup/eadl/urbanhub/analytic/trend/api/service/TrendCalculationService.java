@@ -90,8 +90,8 @@ public class TrendCalculationService {
         // group measures by sensorId and zone
         var bySensor = new java.util.HashMap<String, List<Measure>>();
         for (Measure m : all) {
-            if (m.getSensor() == null || m.getSensor().getZone() == null) continue;
-            String z = m.getSensor().getZone().getZoneId();
+            if (m.getSensor() == null || m.getSensor().getPrimaryZone() == null) continue;
+            String z = m.getSensor().getPrimaryZone().getZoneId();
             if (!zoneId.equals(z)) continue;
             OffsetDateTime ts = m.getId().getTimestamp();
             if (ts.isBefore(start) || ts.isAfter(end)) continue;
@@ -103,6 +103,54 @@ public class TrendCalculationService {
             List<Measure> measures = entry.getValue();
             measures.sort((a, b) -> b.getId().getTimestamp().compareTo(a.getId().getTimestamp())); // desc
             if (measures.size() < 2) continue; // need at least 2 to compute trend
+            Measure latest = measures.get(0);
+            Measure prev = measures.get(1);
+            results.add(buildTrend(latest, prev, "period-last-vs-previous"));
+        }
+
+        return results;
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<TrendDto> computeTrendForSensorInPeriod(String sensorId, OffsetDateTime start, OffsetDateTime end) {
+        List<Measure> measures = measureRepository.findBySensor_SensorId(sensorId);
+        if (measures == null || measures.isEmpty()) return Optional.empty();
+
+        // filter by window
+        List<Measure> inWindow = new ArrayList<>();
+        for (Measure m : measures) {
+            OffsetDateTime ts = m.getId().getTimestamp();
+            if (ts == null) continue;
+            if (!ts.isBefore(start) && !ts.isAfter(end)) {
+                inWindow.add(m);
+            }
+        }
+        if (inWindow.size() < 2) return Optional.empty();
+        inWindow.sort((a, b) -> b.getId().getTimestamp().compareTo(a.getId().getTimestamp())); // desc
+        Measure latest = inWindow.get(0);
+        Measure prev = inWindow.get(1);
+        return Optional.of(buildTrend(latest, prev, "period-N-1"));
+    }
+
+    @Transactional(readOnly = true)
+    public List<TrendDto> computeTrendsInPeriod(OffsetDateTime start, OffsetDateTime end) {
+        List<Measure> all = measureRepository.findAll();
+        List<TrendDto> results = new ArrayList<>();
+
+        var bySensor = new java.util.HashMap<String, List<Measure>>();
+        for (Measure m : all) {
+            if (m.getSensor() == null) continue;
+            OffsetDateTime ts = m.getId().getTimestamp();
+            if (ts == null) continue;
+            if (ts.isBefore(start) || ts.isAfter(end)) continue;
+            String sid = m.getSensor().getSensorId();
+            bySensor.computeIfAbsent(sid, k -> new ArrayList<>()).add(m);
+        }
+
+        for (var entry : bySensor.entrySet()) {
+            List<Measure> measures = entry.getValue();
+            measures.sort((a, b) -> b.getId().getTimestamp().compareTo(a.getId().getTimestamp())); // desc
+            if (measures.size() < 2) continue;
             Measure latest = measures.get(0);
             Measure prev = measures.get(1);
             results.add(buildTrend(latest, prev, "period-last-vs-previous"));
@@ -123,7 +171,7 @@ public class TrendCalculationService {
             }
         }
 
-        String zoneId = latest.getSensor() != null && latest.getSensor().getZone() != null ? latest.getSensor().getZone().getZoneId() : null;
+        String zoneId = latest.getSensor() != null && latest.getSensor().getPrimaryZone() != null ? latest.getSensor().getPrimaryZone().getZoneId() : null;
         String sensorId = latest.getSensor() != null ? latest.getSensor().getSensorId() : null;
 
         return new TrendDto(sensorId, zoneId, latest.getId().getTimestamp(), v, pv, abs, pct, comparedTo);

@@ -41,5 +41,22 @@ public class TrendController {
     ) {
         return trendCalculationService.computeTrendsByZoneInPeriod(zoneId, start, end);
     }
-}
 
+    @GetMapping("/sensor/period")
+    public TrendDto sensorPeriod(
+            @RequestParam("sensor_id") String sensorId,
+            @RequestParam("start") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime start,
+            @RequestParam("end") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime end
+    ) {
+        Optional<TrendDto> t = trendCalculationService.computeTrendForSensorInPeriod(sensorId, start, end);
+        return t.orElse(null);
+    }
+
+    @GetMapping("/period")
+    public List<TrendDto> allSensorsPeriod(
+            @RequestParam("start") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime start,
+            @RequestParam("end") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime end
+    ) {
+        return trendCalculationService.computeTrendsInPeriod(start, end);
+    }
+}

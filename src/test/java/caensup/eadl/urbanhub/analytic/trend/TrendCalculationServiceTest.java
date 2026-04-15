@@ -35,7 +35,7 @@ public class TrendCalculationServiceTest {
     public void testLatestVsPrevious() {
         Sensor s = new Sensor();
         s.setSensorId("S1");
-        Zone z = new Zone(); z.setZoneId("Z1"); s.setZone(z);
+        Zone z = new Zone(); z.setZoneId("Z1"); s.getZones().add(z);
 
         Measure m1 = new Measure();
         m1.setId(new MeasureId(OffsetDateTime.parse("2026-04-15T10:00:00Z"), UUID.randomUUID()));
@@ -64,7 +64,7 @@ public class TrendCalculationServiceTest {
     public void testLatestVs24h_chooseNearest() {
         Sensor s = new Sensor();
         s.setSensorId("S2");
-        Zone z = new Zone(); z.setZoneId("Z2"); s.setZone(z);
+        Zone z = new Zone(); z.setZoneId("Z2"); s.getZones().add(z);
 
         OffsetDateTime now = OffsetDateTime.parse("2026-04-15T12:00:00Z");
 
@@ -100,8 +100,8 @@ public class TrendCalculationServiceTest {
 
     @Test
     public void testZonePeriod() {
-        Sensor s1 = new Sensor(); s1.setSensorId("A1"); Zone z = new Zone(); z.setZoneId("ZP"); s1.setZone(z);
-        Sensor s2 = new Sensor(); s2.setSensorId("A2"); s2.setZone(z);
+        Sensor s1 = new Sensor(); s1.setSensorId("A1"); Zone z = new Zone(); z.setZoneId("ZP"); s1.getZones().add(z);
+        Sensor s2 = new Sensor(); s2.setSensorId("A2"); s2.getZones().add(z);
 
         Measure m1 = new Measure();
         m1.setId(new MeasureId(OffsetDateTime.parse("2026-04-10T10:00:00Z"), UUID.randomUUID()));
@@ -123,5 +123,40 @@ public class TrendCalculationServiceTest {
         // we expect one trend per sensor: A1 and A2
         assertEquals(2, res.size());
     }
-}
 
+    @Test
+    public void testSensorInPeriod() {
+        Sensor s = new Sensor(); s.setSensorId("SP1"); Zone z = new Zone(); z.setZoneId("Z1"); s.getZones().add(z);
+
+        Measure m1 = new Measure(); m1.setId(new MeasureId(OffsetDateTime.parse("2026-04-10T10:00:00Z"), UUID.randomUUID())); m1.setValue(5.0f); m1.setSensor(s);
+        Measure m2 = new Measure(); m2.setId(new MeasureId(OffsetDateTime.parse("2026-04-10T11:00:00Z"), UUID.randomUUID())); m2.setValue(7.0f); m2.setSensor(s);
+        Measure m3 = new Measure(); m3.setId(new MeasureId(OffsetDateTime.parse("2026-04-10T12:30:00Z"), UUID.randomUUID())); m3.setValue(9.0f); m3.setSensor(s);
+
+        when(repo.findBySensor_SensorId(eq("SP1"))).thenReturn(List.of(m1, m2, m3));
+
+        Optional<TrendDto> res = service.computeTrendForSensorInPeriod("SP1", OffsetDateTime.parse("2026-04-10T09:00:00Z"), OffsetDateTime.parse("2026-04-10T12:00:00Z"));
+        assertTrue(res.isPresent());
+        TrendDto t = res.get();
+        // latest in window is m2 (11:00), prev is m1 (10:00)
+        assertEquals(7.0f, t.getValue());
+        assertEquals(5.0f, t.getPreviousValue());
+        assertEquals(2.0f, t.getChangeAbsolute());
+    }
+
+    @Test
+    public void testAllSensorsInPeriod() {
+        Sensor s1 = new Sensor(); s1.setSensorId("B1"); Zone z = new Zone(); z.setZoneId("ZB"); s1.getZones().add(z);
+        Sensor s2 = new Sensor(); s2.setSensorId("B2"); s2.getZones().add(z);
+
+        Measure a1 = new Measure(); a1.setId(new MeasureId(OffsetDateTime.parse("2026-04-11T09:00:00Z"), UUID.randomUUID())); a1.setValue(1.0f); a1.setSensor(s1);
+        Measure a2 = new Measure(); a2.setId(new MeasureId(OffsetDateTime.parse("2026-04-11T10:00:00Z"), UUID.randomUUID())); a2.setValue(2.0f); a2.setSensor(s1);
+
+        Measure b1 = new Measure(); b1.setId(new MeasureId(OffsetDateTime.parse("2026-04-11T09:30:00Z"), UUID.randomUUID())); b1.setValue(3.0f); b1.setSensor(s2);
+        Measure b2 = new Measure(); b2.setId(new MeasureId(OffsetDateTime.parse("2026-04-11T11:00:00Z"), UUID.randomUUID())); b2.setValue(4.0f); b2.setSensor(s2);
+
+        when(repo.findAll()).thenReturn(List.of(a1,a2,b1,b2));
+
+        List<TrendDto> res = service.computeTrendsInPeriod(OffsetDateTime.parse("2026-04-11T08:00:00Z"), OffsetDateTime.parse("2026-04-11T12:00:00Z"));
+        assertEquals(2, res.size());
+    }
+}

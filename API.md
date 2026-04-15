@@ -336,6 +336,81 @@ GET /api/trends/zone/period?zone_id=CENTRE&start=2026-04-14T10:00:00Z&end=2026-0
 
 ---
 
+### GET /api/trends/sensor/period
+Calcule la tendance pour un capteur donné à l'intérieur d'une fenêtre temporelle : la dernière mesure présente dans la fenêtre (N) comparée à la précédente (N-1) elle aussi présente dans la fenêtre.
+
+**Paramètres**
+| Nom | Type | Description |
+|---|---|---|
+| `sensor_id` | string | Identifiant métier du capteur |
+| `start` | string (ISO) | Début de la période (ex: `2026-04-10T09:00:00Z`) |
+| `end` | string (ISO) | Fin de la période (ex: `2026-04-10T12:00:00Z`) |
+
+```
+GET /api/trends/sensor/period?sensor_id=sensor-centre-1&start=2026-04-14T10:00:00Z&end=2026-04-15T12:00:00Z
+```
+
+**Réponse** : objet TrendDto (ou `null` si pas au moins 2 mesures dans la fenêtre)
+```json
+{
+  "sensorId": "sensor-centre-1",
+  "zoneId": "CENTRE",
+  "timestamp": "2026-04-15T11:00:00Z",
+  "value": 10.0,
+  "previousValue": 8.0,
+  "changeAbsolute": 2.0,
+  "changePercent": 25.0,
+  "comparedTo": "period-N-1"
+}
+```
+
+> Remarque : la période est inclusif ; la méthode ne calcule aucune moyenne, seulement la différence entre les deux dernières mesures présentes dans la fenêtre.
+
+---
+
+### GET /api/trends/period
+Calcule la tendance pour tous les capteurs (chaque capteur) sur une période donnée : pour chaque capteur, la dernière mesure dans la fenêtre est comparée à la précédente (toutes deux contenues dans la fenêtre).
+
+**Paramètres**
+| Nom | Type | Description |
+|---|---|---|
+| `start` | string (ISO) | Début de la période (ex: `2026-04-11T08:00:00Z`) |
+| `end` | string (ISO) | Fin de la période (ex: `2026-04-11T12:00:00Z`) |
+
+```
+GET /api/trends/period?start=2026-04-11T08:00:00Z&end=2026-04-11T12:00:00Z
+```
+
+**Réponse** : liste d'objets TrendDto (une entrée par capteur ayant au moins 2 mesures dans la fenêtre)
+```json
+[
+  {
+    "sensorId": "sensor-centre-1",
+    "zoneId": "CENTRE",
+    "timestamp": "2026-04-15T11:00:00Z",
+    "value": 10.0,
+    "previousValue": 8.0,
+    "changeAbsolute": 2.0,
+    "changePercent": 25.0,
+    "comparedTo": "period-last-vs-previous"
+  },
+  {
+    "sensorId": "sensor-north-1",
+    "zoneId": "NORTH",
+    "timestamp": "2026-04-11T11:00:00Z",
+    "value": 4.0,
+    "previousValue": 3.0,
+    "changeAbsolute": 1.0,
+    "changePercent": 33.333336,
+    "comparedTo": "period-last-vs-previous"
+  }
+]
+```
+
+> Remarque : Les capteurs ayant moins de 2 mesures dans la période ne figurent pas dans la réponse.
+
+---
+
 ## Codes d'erreur
 
 | Code | Cas |
