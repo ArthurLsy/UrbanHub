@@ -3,7 +3,6 @@ package caensup.eadl.urbanhub.ingest.exception;
 import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -19,9 +18,9 @@ public class GlobalExceptionHandler {
 
 	@ExceptionHandler(InvalidMeasureException.class)
 	public ResponseEntity<ProblemDetail> handleInvalidMeasure(InvalidMeasureException ex) {
-		ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+		ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
 		detail.setTitle("Invalid measure");
-		return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(detail);
+		return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT).body(detail);
 	}
 
 	@ExceptionHandler(SensorNotFoundException.class)
