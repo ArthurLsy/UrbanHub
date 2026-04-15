@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+import { Combobox } from '@/components/ui/combobox'
 import { useSensors } from '@/queries/sensorQueries'
 import { useZones } from '@/queries/zoneQueries'
 
@@ -19,6 +20,15 @@ function TrendModule({ title, entity }: { title: string; entity: 'sensor' | 'zon
   const [selected, setSelected] = useState<string>('')
   const [period, setPeriod] = useState<Period>('24h')
 
+  useEffect(() => {
+    if (entity === 'sensor' && sensors && sensors.length > 0 && !selected) {
+      setSelected(sensors[0].sensorId)
+    }
+    if (entity === 'zone' && zones && zones.length > 0 && !selected) {
+      setSelected(zones[0].zoneId)
+    }
+  }, [entity, sensors, zones, selected])
+
   const options = entity === 'sensor'
     ? (sensors ?? []).map(s => ({ value: s.sensorId, label: s.sensorId }))
     : (zones ?? []).map(z => ({ value: z.zoneId, label: z.zoneId }))
@@ -34,16 +44,12 @@ function TrendModule({ title, entity }: { title: string; entity: 'sensor' | 'zon
             <label className="text-[10px] text-[#94a3b8] tracking-wider uppercase" style={{ fontFamily: 'var(--font-mono)' }}>
               {entity === 'sensor' ? 'Capteur' : 'Zone'}
             </label>
-            <Select value={selected} onValueChange={setSelected}>
-              <SelectTrigger className="h-9 text-sm">
-                <SelectValue placeholder="Sélectionner…" />
-              </SelectTrigger>
-              <SelectContent>
-                {options.map(o => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Combobox
+              options={options}
+              value={selected}
+              onChange={setSelected}
+              placeholder="Rechercher..."
+            />
           </div>
           <div className="flex flex-col gap-2 min-w-[160px]">
             <label className="text-[10px] text-[#94a3b8] tracking-wider uppercase" style={{ fontFamily: 'var(--font-mono)' }}>
