@@ -7,14 +7,134 @@ import { Combobox } from '@/components/ui/combobox'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { useSensors } from '@/queries/sensorQueries'
 import { useZones } from '@/queries/zoneQueries'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 
 type Period = '1h' | '24h' | '1week'
 type Unit = 'percent' | 'unit'
+type Granularity = 'hour' | 'day' | 'week'
+type GroupBy = 'zone' | 'sensorType'
+
 const PERIODS: { value: Period; label: string }[] = [
   { value: '1h', label: '1 heure' },
   { value: '24h', label: '24 heures' },
   { value: '1week', label: '1 semaine' },
 ]
+
+const GRANULARITIES: { value: Granularity; label: string }[] = [
+  { value: 'hour', label: 'Heure' },
+  { value: 'day', label: 'Jour' },
+  { value: 'week', label: 'Semaine' },
+]
+
+// mock bar chart data
+const MOCK_BARS = [
+  { label: 'Lun', air: 42, noise: 55, traffic: 38 },
+  { label: 'Mar', air: 38, noise: 51, traffic: 42 },
+  { label: 'Mer', air: 45, noise: 58, traffic: 35 },
+  { label: 'Jeu', air: 51, noise: 62, traffic: 48 },
+  { label: 'Ven', air: 48, noise: 60, traffic: 55 },
+  { label: 'Sam', air: 35, noise: 48, traffic: 40 },
+  { label: 'Dim', air: 30, noise: 44, traffic: 28 },
+]
+
+function MoyenneModule() {
+  const [groupBy, setGroupBy] = useState<GroupBy>('zone')
+  const [granularity, setGranularity] = useState<Granularity>('day')
+
+  return (
+    <Card className="p-6">
+      <CardContent className="p-0 flex flex-col gap-5">
+        {/* Filters row */}
+        <div className="flex flex-wrap gap-4 items-end">
+          <div className="flex flex-col gap-2">
+            <label className="text-[10px] text-[#94a3b8] tracking-wider uppercase" style={{ fontFamily: 'var(--font-mono)' }}>
+              Grouper par
+            </label>
+            <ToggleGroup
+              type="single"
+              value={groupBy}
+              onValueChange={(v) => { if (v) setGroupBy(v as GroupBy) }}
+            >
+              <ToggleGroupItem value="zone" variant="outline" className="h-8 px-3 text-xs">
+                Zone
+              </ToggleGroupItem>
+              <ToggleGroupItem value="sensorType" variant="outline" className="h-8 px-3 text-xs">
+                Type de capteur
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-[10px] text-[#94a3b8] tracking-wider uppercase" style={{ fontFamily: 'var(--font-mono)' }}>
+              Granularité
+            </label>
+            <Select value={granularity} onValueChange={(v) => setGranularity(v as Granularity)}>
+              <SelectTrigger className="h-11 text-sm w-full min-w-[130px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {GRANULARITIES.map(g => (
+                  <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-[10px] text-[#94a3b8] tracking-wider uppercase" style={{ fontFamily: 'var(--font-mono)' }}>
+              Période X → Y
+            </label>
+            <div className="flex items-center gap-2">
+              <Select>
+                <SelectTrigger className="h-11 text-sm w-[130px]">
+                  <SelectValue placeholder="Début" />
+                </SelectTrigger>
+                <SelectContent>
+                  {['1 jour', '3 jours', '1 semaine', '2 semaines'].map(o => (
+                    <SelectItem key={o} value={o}>{o}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span className="text-[#94a3b8] text-xs">→</span>
+              <Select>
+                <SelectTrigger className="h-11 text-sm w-[130px]">
+                  <SelectValue placeholder="Fin" />
+                </SelectTrigger>
+                <SelectContent>
+                  {['Maintenant', '1 jour', '3 jours', '1 semaine'].map(o => (
+                    <SelectItem key={o} value={o}>{o}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+
+        {/* Bar chart */}
+        <div className="w-full rounded-xl border border-[#e2e8f0] bg-white p-4">
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={MOCK_BARS} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#94a3b8', fontFamily: 'var(--font-mono)' }}
+                axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: '#94a3b8', fontFamily: 'var(--font-mono)' }}
+                axisLine={false} tickLine={false} />
+              <Tooltip
+                contentStyle={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, fontSize: 12, fontFamily: 'var(--font-mono)' }}
+              />
+              <Legend
+                wrapperStyle={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: '#94a3b8' }}
+              />
+              <Bar dataKey="air" fill="#f59e0b" name="Air (μg/m³)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="noise" fill="#ef4444" name="Bruit (dB)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="traffic" fill="#00b07d" name="Trafic (km/h)" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 
 // mock value per entity (signed)
 const MOCK_VALUES: Record<string, { percent: string; unit: string; unitLabel: string; positive: boolean }> = {
@@ -99,11 +219,11 @@ function TrendModule({ title, entity }: { title: string; entity: 'sensor' | 'zon
         </div>
 
         {/* Big value square */}
-        <div className="w-full rounded-xl border border-[#e2e8f0] bg-white flex flex-col items-center justify-center py-8 px-4 mt-2">
+        <div className="w-full rounded-xl border-[#e2e8f0] bg-white flex flex-row items-center justify-center py-8 px-4 mt-2">
           <p className={`text-5xl font-bold tracking-wider leading-none ${valueColor}`} style={{ fontFamily: 'var(--font-display)' }}>
             {displayValue}
           </p>
-          <p className="text-[11px] text-[#94a3b8] mt-1" style={{ fontFamily: 'var(--font-mono)' }}>
+          <p className="text-[14px] text-[#94a3b8] ml-2 mt-1" style={{ fontFamily: 'var(--font-mono)' }}>
             {unit === 'percent' ? '%' : mock.unitLabel}
           </p>
         </div>
@@ -153,13 +273,7 @@ const KpiPage = () => {
         </TabsContent>
 
         <TabsContent value="moyenne">
-          <Card className="p-5">
-            <CardContent className="p-0">
-              <p className="text-[10px] text-[#94a3b8] tracking-wider uppercase" style={{ fontFamily: 'var(--font-mono)' }}>
-                Module moyenne — à définir
-              </p>
-            </CardContent>
-          </Card>
+          <MoyenneModule />
         </TabsContent>
       </Tabs>
     </div>
