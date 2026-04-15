@@ -1,8 +1,14 @@
 package caensup.eadl.urbanhub.controller;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -84,6 +90,73 @@ class ZoneControllerTest {
                 .andExpect(status().isNotFound());
 
         verify(zoneService).getById("UNKNOWN");
+    }
+
+    @Test
+    @DisplayName("POST /api/zones crée une zone et la retourne")
+    void createShouldReturnCreatedZone() throws Exception {
+        when(zoneService.create(any())).thenReturn(buildDto("ZONE_NORD"));
+
+        mockMvc.perform(post("/api/zones")
+                .contentType("application/json")
+                .content("""
+                    { "zoneId": "ZONE_NORD", "sensorIds": ["SENSOR_01", "SENSOR_02"] }
+                    """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.zoneId").value("ZONE_NORD"));
+
+        verify(zoneService).create(any());
+    }
+
+    @Test
+    @DisplayName("PUT /api/zones/{zoneId} met à jour la zone et la retourne")
+    void updateShouldReturnUpdatedZone() throws Exception {
+        when(zoneService.update(eq("CENTRE"), any())).thenReturn(buildDto("CENTRE"));
+
+        mockMvc.perform(put("/api/zones/CENTRE")
+                .contentType("application/json")
+                .content("""
+                    { "zoneId": "CENTRE", "sensorIds": ["SENSOR_03"] }
+                    """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.zoneId").value("CENTRE"));
+
+        verify(zoneService).update(eq("CENTRE"), any());
+    }
+
+    @Test
+    @DisplayName("PUT /api/zones/{zoneId} retourne 404 si la zone n'existe pas")
+    void updateShouldReturn404WhenZoneNotFound() throws Exception {
+        when(zoneService.update(eq("UNKNOWN"), any())).thenThrow(new ZoneNotFoundException("UNKNOWN"));
+
+        mockMvc.perform(put("/api/zones/UNKNOWN")
+                .contentType("application/json")
+                .content("""
+                    { "zoneId": "UNKNOWN", "sensorIds": [] }
+                    """))
+                .andExpect(status().isNotFound());
+
+        verify(zoneService).update(eq("UNKNOWN"), any());
+    }
+
+    @Test
+    @DisplayName("DELETE /api/zones/{zoneId} supprime la zone et retourne 204")
+    void deleteShouldReturn204() throws Exception {
+        mockMvc.perform(delete("/api/zones/CENTRE"))
+                .andExpect(status().isOk());
+
+        verify(zoneService).delete("CENTRE");
+    }
+
+    @Test
+    @DisplayName("DELETE /api/zones/{zoneId} retourne 404 si la zone n'existe pas")
+    void deleteShouldReturn404WhenZoneNotFound() throws Exception {
+        doThrow(new ZoneNotFoundException("UNKNOWN")).when(zoneService).delete("UNKNOWN");
+
+        mockMvc.perform(delete("/api/zones/UNKNOWN"))
+                .andExpect(status().isNotFound());
+
+        verify(zoneService).delete("UNKNOWN");
     }
 
     private ZoneDto buildDto(String zoneId) {
