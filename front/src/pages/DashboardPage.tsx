@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { Badge } from '@/components/ui/badge'
 import { AlertTriangle } from 'lucide-react'
+import { Skeleton } from '@/components/ui/skeleton'
 
 const formatCount = (n: number): string => {
   if (n >= 1_000_000) {
@@ -19,7 +20,7 @@ const formatCount = (n: number): string => {
 }
 
 const DashboardPage = () => {
-  const { data } = useMeasures()
+  const { data, isLoading } = useMeasures()
 
   const stats = useMemo(() => {
     if (!data || data.length === 0) {
@@ -121,30 +122,51 @@ const DashboardPage = () => {
         <div className="mt-4 h-1 w-20 bg-[#00e5a0]" />
       </header>
 
-      {/* Offline alert banner */}
-      {showOfflineAlert && (
-        <div className="mb-6 flex items-center gap-3 px-5 py-4 rounded-xl border border-amber-200 bg-amber-50">
-          <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
-          <p className="text-sm text-amber-700 tracking-wide" style={{ fontFamily: 'var(--font-mono)' }}>
-            <span className="font-semibold">{stats.inactiveSensors} capteur{stats.inactiveSensors > 1 ? 's' : ''} hors-ligne</span>
-            {' '}— vérifiez l'état du réseau ou des dispositifs.
-          </p>
-          <Link
-            to="/capteurs"
-            className="ml-auto text-xs text-amber-600 hover:text-amber-800 underline underline-offset-2 tracking-wider transition-colors shrink-0"
-            style={{ fontFamily: 'var(--font-mono)' }}
-          >
-            Voir les capteurs →
-          </Link>
+      {isLoading && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map(i => (
+              <Card key={i} className="p-8">
+                <CardContent className="flex items-start gap-5 p-0">
+                  <Skeleton className="w-14 h-14 rounded-xl" />
+                  <div className="flex-1 space-y-3">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-10 w-16" />
+                    <Skeleton className="h-3 w-32" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <Skeleton className="h-48 w-full" />
         </div>
       )}
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+      {!isLoading && data && (
+        <>
+          {showOfflineAlert && (
+            <div className="mb-6 flex items-center gap-3 px-5 py-4 rounded-xl border border-amber-200 bg-amber-50">
+              <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
+              <p className="text-sm text-amber-700 tracking-wide" style={{ fontFamily: 'var(--font-mono)' }}>
+                <span className="font-semibold">{stats.inactiveSensors} capteur{stats.inactiveSensors > 1 ? 's' : ''} hors-ligne</span>
+                {' '}— vérifiez l'état du réseau ou des dispositifs.
+              </p>
+              <Link
+                to="/capteurs"
+                className="ml-auto text-xs text-amber-600 hover:text-amber-800 underline underline-offset-2 tracking-wider transition-colors shrink-0"
+                style={{ fontFamily: 'var(--font-mono)' }}
+              >
+                Voir les capteurs →
+              </Link>
+            </div>
+          )}
 
-        {/* Capteurs card */}
-        <Card className="p-8">
-          <CardContent className="flex items-start gap-5 p-0">
+          {/* Stat cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+
+            {/* Capteurs card */}
+            <Card className="p-8">
+              <CardContent className="flex items-start gap-5 p-0">
             <div className="w-14 h-14 rounded-xl bg-[#00e5a0]/10 flex items-center justify-center text-[#00b07d] shrink-0">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="3" />
@@ -337,6 +359,8 @@ const DashboardPage = () => {
           </Card>
         )}
       </div>
+      </>
+      )}
 
     </div>
   )

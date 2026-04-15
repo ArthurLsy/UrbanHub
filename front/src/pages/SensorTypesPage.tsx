@@ -3,6 +3,7 @@ import { useMemo } from 'react'
 import { useSensors } from '../queries/sensorQueries'
 import { Card, CardContent } from '@/components/ui/card'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
+import { Skeleton } from '@/components/ui/skeleton'
 
 const SENSOR_TYPE_ICONS: Record<string, React.ReactNode> = {
   AIR: (
@@ -69,16 +70,18 @@ const SensorTypesPage = () => {
       </header>
 
       {sensorsLoading && (
-        <p className="text-sm text-[#94a3b8] tracking-wider animate-pulse" style={{ fontFamily: 'var(--font-mono)' }}>
-          Chargement...
-        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {[1, 2, 3, 4].map(i => (
+            <Skeleton key={i} className="h-32 w-full" />
+          ))}
+        </div>
       )}
       {sensorsError && (
         <p className="text-sm text-red-500 tracking-wider" style={{ fontFamily: 'var(--font-mono)' }}>
           Erreur de connexion au backend.
         </p>
       )}
-      {sensors && (
+      {sensors && !sensorsLoading && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {typesWithCount.map(({ typeId, count }) => (
             <Link key={typeId} to={`/capteurs?type=${typeId}`}>

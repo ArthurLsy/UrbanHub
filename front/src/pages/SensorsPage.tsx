@@ -9,6 +9,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Input } from '@/components/ui/input'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { Skeleton } from '@/components/ui/skeleton'
 
 type SortKey = 'sensorId' | 'type' | 'status'
 type SortDir = 'asc' | 'desc'
@@ -250,17 +251,25 @@ const SensorsPage = () => {
 
       <Card>
         <CardContent className="p-6">
-          {isLoading && (
-            <p className="text-sm text-[#94a3b8] tracking-wider animate-pulse" style={{ fontFamily: 'var(--font-mono)' }}>
-              Chargement...
-            </p>
-          )}
-          {isError && (
+          {isLoading ? (
+            <div className="space-y-4">
+              <div className="flex gap-4">
+                <Skeleton className="h-10 w-32" />
+                <Skeleton className="h-10 w-32" />
+                <Skeleton className="h-10 w-32" />
+              </div>
+              <Skeleton className="h-10 w-full" />
+              <div className="space-y-3">
+                {[1, 2, 3].map(i => (
+                  <Skeleton key={i} className="h-16 w-full" />
+                ))}
+              </div>
+            </div>
+          ) : isError ? (
             <p className="text-sm text-red-500 tracking-wider" style={{ fontFamily: 'var(--font-mono)' }}>
               Erreur de connexion au backend.
             </p>
-          )}
-          {sensors && (
+          ) : (
             <>
               {/* Count + page size selector */}
               <div className="flex items-center justify-between mb-4">
