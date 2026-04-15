@@ -23,6 +23,7 @@ import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
@@ -132,7 +133,7 @@ class IngestMeasureMqttTest {
         @Test
         @DisplayName("disconnect() ne doit rien faire si le client est null")
         void disconnectShouldDoNothingWhenClientIsNull() {
-                subscriber.disconnect();
+                assertDoesNotThrow(() -> subscriber.disconnect());
         }
 
         @Test
@@ -144,6 +145,6 @@ class IngestMeasureMqttTest {
                                 .when(mockClient).disconnect();
                 ReflectionTestUtils.setField(subscriber, "mqttClient", mockClient);
 
-                subscriber.disconnect();
+                assertDoesNotThrow(() -> subscriber.disconnect());
         }
 }
