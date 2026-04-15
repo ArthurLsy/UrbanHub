@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Combobox } from '@/components/ui/combobox'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+import { Breadcrumb } from '@/components/ui/breadcrumb'
 
 type Period = '1h' | '24h' | '1w' | '1m' | '90d' | '1y'
 const PERIOD_LABELS: Record<Period, string> = {
@@ -112,6 +113,7 @@ const ComparisonPage = () => {
 
   return (
     <div>
+      <Breadcrumb items={[{ label: 'Comparaison' }]} className="mb-6" />
       <header className="mb-10">
         <p className="text-[12px] text-[#00b07d] tracking-[0.2em] uppercase mb-2" style={{ fontFamily: 'var(--font-mono)' }}>
           Analyse comparative

@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
+import { Breadcrumb } from '@/components/ui/breadcrumb'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 
 type SortKey = 'sensorId' | 'type' | 'status'
 type SortDir = 'asc' | 'desc'
@@ -155,6 +157,7 @@ const SensorsPage = () => {
 
   return (
     <div>
+      <Breadcrumb items={[{ label: 'Capteurs' }]} className="mb-6" />
       <header className="mb-8">
         <p className="text-[11px] text-[#00b07d] tracking-[0.2em] uppercase mb-2" style={{ fontFamily: 'var(--font-mono)' }}>
           Dispositifs de mesure
@@ -191,40 +194,53 @@ const SensorsPage = () => {
               <label className="text-[11px] text-[#94a3b8] tracking-[0.1em] uppercase" style={{ fontFamily: 'var(--font-mono)' }}>
                 Type
               </label>
-              <Select value={typeFilter || 'all'} onValueChange={handleTypeChange}>
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="Tous les types" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tous les types</SelectItem>
-                  {uniqueTypes.map((t) => (
-                    <SelectItem key={t} value={t}>{t}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <ToggleGroup
+                type="single"
+                value={typeFilter || 'all'}
+                onValueChange={(val) => { if (val) handleTypeChange(val === 'all' ? '' : val) }}
+              >
+                <ToggleGroupItem value="all" variant="outline" className="px-3 py-2">
+                  Tous
+                </ToggleGroupItem>
+                {uniqueTypes.map((t) => (
+                  <ToggleGroupItem key={t} value={t} variant="outline" className="px-3 py-2">
+                    {t}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
             </div>
 
             <div className="flex flex-col gap-2 ml-auto">
               <label className="text-[11px] text-[#94a3b8] tracking-[0.1em] uppercase" style={{ fontFamily: 'var(--font-mono)' }}>
                 Trier par
               </label>
-              <div className="flex gap-2">
+              <ToggleGroup
+                type="single"
+                value={sortKey}
+                onValueChange={(val) => {
+                  if (!val) {
+                    // clicking the already selected item → toggle direction
+                    setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+                  } else {
+                    toggleSort(val as SortKey)
+                  }
+                }}
+              >
                 {(['sensorId', 'type', 'status'] as SortKey[]).map((key) => {
                   const labels: Record<SortKey, string> = { sensorId: 'Nom', type: 'Type', status: 'Statut' }
                   return (
-                    <Button
+                    <ToggleGroupItem
                       key={key}
-                      variant={sortKey === key ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => toggleSort(key)}
-                      className={sortKey === key ? 'bg-[#00e5a0] text-[#0d0f14] hover:bg-[#00e5a0]/90' : ''}
+                      value={key}
+                      variant="default"
+                      className="px-3 py-2 gap-1.5"
                     >
                       {labels[key]}
                       <SortIcon active={sortKey === key} dir={sortDir} />
-                    </Button>
+                    </ToggleGroupItem>
                   )
                 })}
-              </div>
+              </ToggleGroup>
             </div>
           </div>
 

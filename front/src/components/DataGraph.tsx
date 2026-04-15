@@ -1,9 +1,12 @@
+import { useMemo } from 'react'
 import { LineChart, CartesianGrid, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import type { Measure } from '../types'
 
 interface DataGraphProps {
   data: Measure[]
   height?: number
+  /** Window size for moving average smoothing. 1 = no smoothing. Default 5. */
+  smooth?: number
 }
 
 const formatTimestamp = (timestamp: string) => {
@@ -11,16 +14,30 @@ const formatTimestamp = (timestamp: string) => {
   return date.toLocaleDateString('fr-FR', {
     day: '2-digit',
     month: '2-digit',
-    year: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
   })
 }
 
-const DataGraph = ({ data, height = 300 }: DataGraphProps) => {
+/** Simple moving average to smooth noisy sensor data */
+function smoothData(data: Measure[], window: number): Measure[] {
+  if (window <= 1 || data.length < window) return data
+  return data.map((point, i) => {
+    const half = Math.floor(window / 2)
+    const start = Math.max(0, i - half)
+    const end = Math.min(data.length, i + half + 1)
+    const slice = data.slice(start, end)
+    const avg = slice.reduce((sum, p) => sum + p.value, 0) / slice.length
+    return { ...point, value: avg }
+  })
+}
+
+const DataGraph = ({ data, height = 300, smooth = 5 }: DataGraphProps) => {
+  const smoothed = useMemo(() => smoothData(data, smooth), [data, smooth])
+
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={data}>
+      <LineChart data={smoothed}>
         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
         <XAxis
           dataKey="timestamp"
@@ -46,8 +63,15 @@ const DataGraph = ({ data, height = 300 }: DataGraphProps) => {
           }}
           labelStyle={{ color: '#1e293b', fontWeight: 600 }}
           itemStyle={{ color: '#00b07d' }}
+          formatter={(v) => [`${(v as number).toFixed(2)}`, 'Valeur']}
         />
-        <Line dataKey="value" stroke="#00e5a0" dot={false} strokeWidth={2} />
+        <Line
+          dataKey="value"
+          stroke="#00e5a0"
+          dot={false}
+          strokeWidth={2}
+          type="monotone"
+        />
       </LineChart>
     </ResponsiveContainer>
   )

@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.UUID;
 
 @Service
 public class ZoneService {
@@ -53,20 +52,16 @@ public class ZoneService {
         }
         Zone zone = new Zone();
         zone.setZoneId(dto.zoneId());
-        Zone saved = zoneRepository.save(zone);
 
         if (dto.sensorIds() != null && !dto.sensorIds().isEmpty()) {
             for (String sensorId : dto.sensorIds()) {
                 sensorRepository.findBySensorId(sensorId).ifPresent(sensor -> {
-                    // Remove from previous zone if any (prevents orphanRemoval issues)
-                    if (sensor.getZone() != null) {
-                        sensor.getZone().getSensors().remove(sensor);
-                    }
-                    sensor.setZone(saved);
-                    sensorRepository.save(sensor);
+                    zone.getSensors().add(sensor);
                 });
             }
         }
+
+        Zone saved = zoneRepository.save(zone);
         return toDto(zoneRepository.findById(saved.getUuid()).orElseThrow());
     }
 
@@ -83,21 +78,10 @@ public class ZoneService {
         }
 
         if (dto.sensorIds() != null) {
-            // Clear existing associations
-            if (zone.getSensors() != null) {
-                for (Sensor sensor : zone.getSensors()) {
-                    sensor.setZone(null);
-                    sensorRepository.save(sensor);
-                }
-            }
-            // Assign new sensors (remove from their old zone first)
+            zone.getSensors().clear();
             for (String sensorId : dto.sensorIds()) {
                 sensorRepository.findBySensorId(sensorId).ifPresent(sensor -> {
-                    if (sensor.getZone() != null) {
-                        sensor.getZone().getSensors().remove(sensor);
-                    }
-                    sensor.setZone(zone);
-                    sensorRepository.save(sensor);
+                    zone.getSensors().add(sensor);
                 });
             }
         }
@@ -110,13 +94,6 @@ public class ZoneService {
     public void delete(String zoneId) {
         Zone zone = zoneRepository.findByZoneId(zoneId)
                 .orElseThrow(() -> new ZoneNotFoundException(zoneId));
-        // Clear sensor associations
-        if (zone.getSensors() != null) {
-            for (Sensor sensor : zone.getSensors()) {
-                sensor.setZone(null);
-                sensorRepository.save(sensor);
-            }
-        }
         zoneRepository.delete(zone);
     }
 

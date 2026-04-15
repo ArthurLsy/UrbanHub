@@ -1,12 +1,14 @@
 import { useMemo, useState, useEffect } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMap, Circle, Polygon, Tooltip } from 'react-leaflet'
 import L from 'leaflet'
+import { useSearchParams } from 'react-router-dom'
 // Import Leaflet CSS directly from JS so Vite resolves it from node_modules
 import 'leaflet/dist/leaflet.css'
 import { useMeasures } from '../queries/measureQueries'
 import { useZones } from '../queries/zoneQueries'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
+import { Breadcrumb } from '@/components/ui/breadcrumb'
 
 // ─── Icon SVG paths by sensor type keyword ───────────────────────────────────
 const TYPE_ICON: Record<string, string> = {
@@ -56,11 +58,14 @@ const makeMarkerIcon = (typeId: string, active: boolean) => {
 }
 
 // ─── Auto-fit map bounds to NW/SE corners ─────────────────────────────────────
-function FitBounds({ coords }: { coords: [number, number][] }) {
+function FitBounds({ coords, focusCoord }: { coords: [number, number][]; focusCoord?: [number, number] }) {
   const map = useMap()
   useEffect(() => {
-    if (coords.length === 0) return
-    if (coords.length === 1) {
+    if (focusCoord) {
+      map.setView(focusCoord, 16)
+    } else if (coords.length === 0) {
+      return
+    } else if (coords.length === 1) {
       map.setView(coords[0], 15)
     } else {
       // Find NW (max lat, min lon) and SE (min lat, max lon) corners
@@ -70,7 +75,7 @@ function FitBounds({ coords }: { coords: [number, number][] }) {
       const southEast: [number, number] = [Math.min(...lats), Math.max(...lons)]
       map.fitBounds(L.latLngBounds([northWest, southEast]), { padding: [50, 50] })
     }
-  }, [map, coords])
+  }, [map, coords, focusCoord])
   return null
 }
 
@@ -117,10 +122,23 @@ const formatDateTime = (ts: string): string => {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 const MapPage = () => {
+  const [searchParams] = useSearchParams()
   const { data } = useMeasures()
   const { data: zones } = useZones()
   const [typeFilter, setTypeFilter] = useState('all')
   const [zoneFilter, setZoneFilter] = useState('none')
+
+  // Single-sensor focus from "Voir sur la carte" button
+  const focusCoord: [number, number] | undefined = (() => {
+    const lat = searchParams.get('lat')
+    const lng = searchParams.get('lng')
+    if (lat && lng) {
+      const latNum = parseFloat(lat)
+      const lngNum = parseFloat(lng)
+      if (!isNaN(latNum) && !isNaN(lngNum)) return [latNum, lngNum]
+    }
+    return undefined
+  })()
 
   const sensors = useMemo(() => {
     if (!data) return []
@@ -200,7 +218,7 @@ const MapPage = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 64px)' }}>
-      {/* Header */}
+      <Breadcrumb items={[{ label: 'Carte' }]} className="mb-6" />
       <header style={{ marginBottom: 24 }}>
         <p className="text-[12px] text-[#00b07d] tracking-[0.2em] uppercase mb-2" style={{ fontFamily: 'var(--font-mono)' }}>
           Visualisation spatiale
@@ -281,7 +299,7 @@ const MapPage = () => {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           />
 
-          <FitBounds coords={coords} />
+          <FitBounds coords={coords} focusCoord={focusCoord} />
 
           {/* Zone overlays */}
           {zones && zones.map(zone => {

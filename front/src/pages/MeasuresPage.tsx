@@ -1,12 +1,14 @@
 import { useMeasures } from '../queries/measureQueries'
 import DataGraph from '../components/DataGraph'
 import { Card, CardContent } from '@/components/ui/card'
+import { Breadcrumb } from '@/components/ui/breadcrumb'
 
 const MeasuresPage = () => {
   const { data, isLoading, isError } = useMeasures()
 
   return (
     <div>
+      <Breadcrumb items={[{ label: 'Mesures' }]} className="mb-6" />
       <header className="mb-8">
         <p className="text-[10px] text-[#00e5a0] tracking-[0.2em] uppercase mb-1" style={{ fontFamily: 'var(--font-mono)' }}>
           Données temps réel

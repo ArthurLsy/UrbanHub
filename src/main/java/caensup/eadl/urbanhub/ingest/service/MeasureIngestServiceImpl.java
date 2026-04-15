@@ -75,7 +75,6 @@ public class MeasureIngestServiceImpl implements MeasureIngestService {
                     newSensor.setStatus(true);
                     newSensor.setLatitude(lat);
                     newSensor.setLongitude(lon);
-                    newSensor.setZone(null);
 
                     return sensorRepository.save(newSensor);
                 });

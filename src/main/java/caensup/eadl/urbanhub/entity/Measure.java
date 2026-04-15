@@ -27,7 +27,7 @@ public class Measure {
     @JoinColumn(name = "sensor_uuid", insertable = false, updatable = false)
     private Sensor sensor;
 
-    @Column(name = "value", nullable = false)
+    @Column(name = "\"value\"", nullable = false)
     private Float value;
 
     @Column(name = "unit", nullable = false)

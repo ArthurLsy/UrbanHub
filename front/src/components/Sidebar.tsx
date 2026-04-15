@@ -1,4 +1,6 @@
+import { useState, useRef, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
+import { cn } from '@/lib/utils'
 
 const NAV_ITEMS = [
   {
@@ -67,13 +69,51 @@ const NAV_ITEMS = [
       </svg>
     ),
   },
+  {
+    to: '/kpis',
+    label: 'KPIs',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 3v18h18" /><path d="m19 9-5 5-4-4-3 3" />
+      </svg>
+    ),
+  },
 ]
 
-const Sidebar = () => {
+// Mock notifications (à remplacer par appels API)
+const MOCK_NOTIFICATIONS: { id: number; message: string; time: string; type: 'info' | 'warning' | 'error' }[] = [
+  { id: 1, message: 'Capteur AIR_03 hors ligne depuis 15 min', time: 'il y a 5 min', type: 'warning' },
+  { id: 2, message: 'Niveau sonore élevé zone Centre (72 dB)', time: 'il y a 12 min', type: 'error' },
+  { id: 3, message: 'Nouveau capteur NOISE_07 enregistré', time: 'il y a 1h', type: 'info' },
+]
+
+interface SidebarProps {
+  className?: string
+}
+
+const Sidebar = ({ className }: SidebarProps) => {
+  const [notifOpen, setNotifOpen] = useState(false)
+  const notifRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false)
+      }
+    }
+    if (notifOpen) {
+      document.addEventListener('mousedown', handleClick)
+    }
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [notifOpen])
+
+  const unreadCount = MOCK_NOTIFICATIONS.length
+
   return (
     <aside
+      className={cn("w-64 shrink-0 bg-white border-r border-[#e2e8f0] flex flex-col h-screen sticky top-0", className)}
       style={{ fontFamily: 'var(--font-display)' }}
-      className="w-64 shrink-0 bg-white border-r border-[#e2e8f0] flex flex-col min-h-screen sticky top-0"
     >
       {/* Logo */}
       <div className="px-6 py-8 border-b border-[#e2e8f0]">
@@ -86,7 +126,7 @@ const Sidebar = () => {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-4 py-6 flex flex-col gap-1">
+      <nav className="flex-1 px-4 py-6 flex flex-col gap-1 overflow-y-auto">
         <p className="px-3 mb-3 text-[11px] tracking-[0.15em] text-[#94a3b8] uppercase font-semibold">
           Navigation
         </p>
@@ -96,12 +136,12 @@ const Sidebar = () => {
             to={to}
             end={to === '/'}
             className={({ isActive }) =>
-              [
+              cn(
                 'flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium tracking-wide transition-all duration-150',
                 isActive
                   ? 'bg-[#00e5a0]/10 text-[#00b07d] border border-[#00e5a0]/20'
-                  : 'text-[#64748b] border border-transparent hover:text-[#1e293b] hover:bg-[#f1f5f9]',
-              ].join(' ')
+                  : 'text-[#64748b] border border-transparent hover:text-[#1e293b] hover:bg-[#f1f5f9]'
+              )
             }
           >
             {icon}
@@ -110,17 +150,92 @@ const Sidebar = () => {
         ))}
       </nav>
 
-      {/* Footer */}
-      <div className="px-6 py-5 border-t border-[#e2e8f0]">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-[#00e5a0] animate-pulse" />
-          <span style={{ fontFamily: 'var(--font-mono)' }} className="text-[11px] text-[#94a3b8] tracking-wider uppercase">
-            Système actif
-          </span>
-        </div>
+      {/* Footer with notifications */}
+      <div className="border-t border-[#e2e8f0]" ref={notifRef}>
+        {/* Notification button */}
+        <button
+          onClick={() => setNotifOpen(!notifOpen)}
+          className="w-full px-6 py-4 flex items-center justify-between hover:bg-[#f8fafc] transition-colors duration-150"
+        >
+          <div className="flex items-center gap-2">
+            <span style={{ fontFamily: 'var(--font-mono)' }} className="text-[11px] text-[#94a3b8] tracking-wider uppercase">
+              Notifications
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="text-[#94a3b8]">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+              {unreadCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center"
+                  style={{ fontFamily: 'var(--font-mono)' }}>
+                  {unreadCount}
+                </span>
+              )}
+            </div>
+            <svg
+              width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+              className={cn("text-[#94a3b8] transition-transform duration-200", notifOpen && "rotate-180")}
+            >
+              <path d="m18 15-6-6-6 6" />
+            </svg>
+          </div>
+        </button>
+
+        {/* Notification dropdown */}
+        {notifOpen && (
+          <div className="border-t border-[#e2e8f0] bg-white">
+            <div className="px-4 py-3">
+              {MOCK_NOTIFICATIONS.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-6 gap-2">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
+                    className="text-[#cbd5e1]">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                  </svg>
+                  <p className="text-xs text-[#94a3b8]" style={{ fontFamily: 'var(--font-mono)' }}>
+                    Aucune notification
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-1">
+                  {MOCK_NOTIFICATIONS.map((n) => (
+                    <div key={n.id}
+                      className={cn(
+                        "flex items-start gap-2.5 px-3 py-2.5 rounded-lg text-left",
+                        n.type === 'error' ? 'bg-red-50 border border-red-100' :
+                          n.type === 'warning' ? 'bg-amber-50 border border-amber-100' :
+                            'bg-blue-50 border border-blue-100'
+                      )}
+                    >
+                      <span className={cn(
+                        "w-1.5 h-1.5 rounded-full mt-1.5 shrink-0",
+                        n.type === 'error' ? 'bg-red-500' :
+                          n.type === 'warning' ? 'bg-amber-500' :
+                            'bg-blue-500'
+                      )} />
+                      <div className="min-w-0">
+                        <p className="text-[11px] text-[#334155] leading-snug"
+                          style={{ fontFamily: 'var(--font-mono)' }}>
+                          {n.message}
+                        </p>
+                        <p className="text-[9px] text-[#94a3b8] mt-0.5"
+                          style={{ fontFamily: 'var(--font-mono)' }}>
+                          {n.time}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </aside>
   )
 }
 
-export default Sidebar
+export { Sidebar }

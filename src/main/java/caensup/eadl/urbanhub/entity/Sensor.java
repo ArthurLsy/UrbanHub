@@ -2,20 +2,26 @@ package caensup.eadl.urbanhub.entity;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import java.util.HashSet;
 import java.util.UUID;
-import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "sensor")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Sensor {
 
     @Id
     @Column(name = "uuid", columnDefinition = "UUID")
+    @EqualsAndHashCode.Include
     private UUID uuid = UUID.randomUUID();
 
     @Column(name = "sensor_id", nullable = false)
@@ -30,14 +36,13 @@ public class Sensor {
     @Column(name = "status", nullable = false)
     private Boolean status;
 
-    @ManyToOne
-    @JoinColumn(name = "zone_id")
-    private Zone zone;
+    @ManyToMany(mappedBy = "sensors")
+    private Set<Zone> zones = new HashSet<>();
 
     @ManyToOne
     @JoinColumn(name = "sensor_type", nullable = false)
     private SensorType sensorType;
 
     @OneToMany(mappedBy = "sensor", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Measure> measures;
+    private Set<Measure> measures;
 }

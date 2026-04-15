@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useMeasures } from '../queries/measureQueries'
 import { Card, CardContent } from '@/components/ui/card'
+import { Breadcrumb } from '@/components/ui/breadcrumb'
 
 const SENSOR_TYPE_ICONS: Record<string, React.ReactNode> = {
   AIR: (
@@ -54,6 +55,7 @@ const SensorTypesPage = () => {
 
   return (
     <div>
+      <Breadcrumb items={[{ label: 'Types de capteur' }]} className="mb-6" />
       <header className="mb-8">
         <p className="text-[11px] text-[#00b07d] tracking-[0.2em] uppercase mb-2" style={{ fontFamily: 'var(--font-mono)' }}>
           Classification

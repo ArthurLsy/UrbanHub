@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 import caensup.eadl.urbanhub.dto.ZoneDto;
 import caensup.eadl.urbanhub.entity.Zone;
 import caensup.eadl.urbanhub.ingest.exception.ZoneNotFoundException;
+import caensup.eadl.urbanhub.repository.SensorRepository;
 import caensup.eadl.urbanhub.repository.ZoneRepository;
 import java.util.List;
 import java.util.Optional;
@@ -25,11 +26,14 @@ class ZoneServiceTest {
     @Mock
     private ZoneRepository zoneRepository;
 
+    @Mock
+    private SensorRepository sensorRepository;
+
     private ZoneService zoneService;
 
     @BeforeEach
     void setUp() {
-        zoneService = new ZoneService(zoneRepository);
+        zoneService = new ZoneService(zoneRepository, sensorRepository);
     }
 
     @Test

@@ -15,9 +15,4 @@ public interface SensorRepository extends JpaRepository<Sensor, UUID> {
      * Finds a sensor by its business identifier (sensor_id in the JSON payload).
      */
     Optional<Sensor> findBySensorId(String sensorId);
-
-    /**
-     * Returns all sensors belonging to a zone identified by its zoneId.
-     */
-    List<Sensor> findByZone_ZoneId(String zoneId);
 }

@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useMeasures } from '../queries/measureQueries'
 import { Card, CardContent } from '@/components/ui/card'
+import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { Badge } from '@/components/ui/badge'
 import { AlertTriangle } from 'lucide-react'
 
@@ -32,6 +33,7 @@ const DashboardPage = () => {
         typeBreakdown: [] as { type: string; count: number }[],
         mostActiveSensor: null as string | null,
         mostActiveMeasureCount: 0,
+        typeStats: [] as { type: string; unit: string; avg: number; latest: number; lastTimestamp: string }[],
       }
     }
 
@@ -39,11 +41,26 @@ const DashboardPage = () => {
     const sensorMap = new Map<string, boolean>()
     const measureCountBySensor = new Map<string, number>()
     const measureCountByType = new Map<string, number>()
+    const typeValues = new Map<string, number[]>()
+    const typeUnits = new Map<string, string>()
+    const typeLatest = new Map<string, { value: number; timestamp: string }>()
 
-    data.forEach((m) => {
+    // Sort data by timestamp ascending so latest is last
+    const sorted = [...data].sort((a, b) =>
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    )
+
+    sorted.forEach((m) => {
       sensorMap.set(m.sensorId, m.sensorStatus)
       measureCountBySensor.set(m.sensorId, (measureCountBySensor.get(m.sensorId) ?? 0) + 1)
       measureCountByType.set(m.sensorTypeId, (measureCountByType.get(m.sensorTypeId) ?? 0) + 1)
+
+      if (!typeValues.has(m.sensorTypeId)) {
+        typeValues.set(m.sensorTypeId, [])
+        typeUnits.set(m.sensorTypeId, m.unit)
+      }
+      typeValues.get(m.sensorTypeId)!.push(m.value)
+      typeLatest.set(m.sensorTypeId, { value: m.value, timestamp: m.timestamp })
     })
 
     const sensorCount = sensorMap.size
@@ -67,6 +84,14 @@ const DashboardPage = () => {
       }
     })
 
+    const typeStats = Array.from(typeValues.entries())
+      .map(([type, values]) => {
+        const avg = values.reduce((a, b) => a + b, 0) / values.length
+        const { value: latest, timestamp: lastTimestamp } = typeLatest.get(type)!
+        return { type, unit: typeUnits.get(type)!, avg, latest, lastTimestamp }
+      })
+      .sort((a, b) => a.type.localeCompare(b.type))
+
     return {
       sensorCount,
       activeSensors,
@@ -77,6 +102,7 @@ const DashboardPage = () => {
       typeBreakdown,
       mostActiveSensor,
       mostActiveMeasureCount,
+      typeStats,
     }
   }, [data])
 
@@ -84,6 +110,7 @@ const DashboardPage = () => {
 
   return (
     <div>
+      <Breadcrumb items={[{ label: 'Tableau de bord' }]} className="mb-6" />
       <header className="mb-10">
         <p className="text-[12px] text-[#00b07d] tracking-[0.2em] uppercase mb-2" style={{ fontFamily: 'var(--font-mono)' }}>
           Vue d'ensemble
@@ -269,6 +296,46 @@ const DashboardPage = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Averages card — full width */}
+        {stats.typeStats.length > 0 && (
+          <Card className="p-8 sm:col-span-2 lg:col-span-3">
+            <CardContent className="p-0">
+              <p className="text-[11px] text-[#94a3b8] tracking-[0.15em] uppercase mb-4" style={{ fontFamily: 'var(--font-mono)' }}>
+                Moyennes et dernières valeurs
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                {stats.typeStats.map(({ type, unit, avg, latest, lastTimestamp }) => {
+                  const fmt = (n: number) => n % 1 === 0 ? String(n) : n.toFixed(2)
+                  const fmtDate = (ts: string) => {
+                    const d = new Date(ts)
+                    if (isNaN(d.getTime())) return ts
+                    return d.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+                  }
+                  return (
+                    <div key={type} className="rounded-xl border border-[#e2e8f0] p-4">
+                      <p className="text-[10px] text-[#94a3b8] tracking-[0.15em] uppercase mb-3" style={{ fontFamily: 'var(--font-mono)' }}>
+                        {type}
+                      </p>
+                      <div className="flex items-baseline gap-1.5 mb-1">
+                        <span className="text-3xl font-bold tracking-wider text-[#0d0f14]" style={{ fontFamily: 'var(--font-display)' }}>
+                          {fmt(latest)}
+                        </span>
+                        <span className="text-sm text-[#94a3b8]">{unit}</span>
+                      </div>
+                      <p className="text-[10px] text-[#94a3b8] tracking-wider" style={{ fontFamily: 'var(--font-mono)' }}>
+                        Moyenne : <span className="text-[#64748b] font-semibold">{fmt(avg)}</span> {unit}
+                      </p>
+                      <p className="text-[10px] text-[#94a3b8] tracking-wider mt-0.5" style={{ fontFamily: 'var(--font-mono)' }}>
+                        Dernière : {fmtDate(lastTimestamp)}
+                      </p>
+                    </div>
+                  )
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
     </div>

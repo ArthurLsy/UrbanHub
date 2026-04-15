@@ -1,12 +1,14 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, MapPin, Cpu, AlertTriangle, Map as MapIcon, ChevronRight, ChevronDown, Square, Pencil, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { MapContainer, TileLayer, Marker } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import { useZones, useCreateZone, useUpdateZone, useDeleteZone } from '../queries/zoneQueries'
 import { useMeasures } from '../queries/measureQueries'
 import { Card, CardContent } from '@/components/ui/card'
+import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -187,8 +189,10 @@ const ZonesPage = () => {
     setSubmitError(null)
     try {
       await createZone.mutateAsync({ zoneId: zoneName.trim(), sensorIds: selectedSensors })
+      toast.success(`Zone "${zoneName.trim()}" créée avec succès`)
       handleOpenChange(false)
     } catch {
+      toast.error("Impossible de créer la zone. Veuillez réessayer.")
       setSubmitError("Impossible de créer la zone. Veuillez réessayer.")
     }
   }
@@ -214,8 +218,10 @@ const ZonesPage = () => {
         zoneId: editingZone,
         payload: { zoneId: editZoneName.trim(), sensorIds: editSelectedSensors },
       })
+      toast.success(`Zone "${editZoneName.trim()}" mise à jour`)
       setEditOpen(false)
     } catch {
+      toast.error("Impossible de mettre à jour la zone. Veuillez réessayer.")
       setEditSubmitError("Impossible de mettre à jour la zone. Veuillez réessayer.")
     }
   }
@@ -236,9 +242,11 @@ const ZonesPage = () => {
     setDeleteSubmitError(null)
     try {
       await deleteZone.mutateAsync(deletingZoneId)
+      toast.success(`Zone supprimée`)
       setDeleteOpen(false)
       setExpandedZone(null)
     } catch {
+      toast.error("Impossible de supprimer la zone. Veuillez réessayer.")
       setDeleteSubmitError("Impossible de supprimer la zone. Veuillez réessayer.")
     }
   }
@@ -251,6 +259,7 @@ const ZonesPage = () => {
 
   return (
     <div>
+      <Breadcrumb items={[{ label: 'Zones' }]} className="mb-6" />
       {/* Header */}
       <header className="mb-10 flex items-start justify-between">
         <div>

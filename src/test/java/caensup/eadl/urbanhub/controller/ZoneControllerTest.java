@@ -87,6 +87,6 @@ class ZoneControllerTest {
     }
 
     private ZoneDto buildDto(String zoneId) {
-        return new ZoneDto(UUID.randomUUID(), zoneId);
+        return new ZoneDto(UUID.randomUUID(), zoneId, List.of());
     }
 }

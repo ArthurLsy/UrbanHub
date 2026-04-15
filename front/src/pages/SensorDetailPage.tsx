@@ -1,10 +1,11 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { Map as MapIcon } from 'lucide-react'
 import { useMeasuresBySensor } from '../queries/measureQueries'
 import DataGraph from '../components/DataGraph'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Breadcrumb } from '@/components/ui/breadcrumb'
 
 const SensorDetailPage = () => {
   const { id } = useParams<{ id: string }>()
@@ -15,17 +16,9 @@ const SensorDetailPage = () => {
 
   return (
     <div>
-      <header className="mb-10">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate('/capteurs')}
-          className="mb-5 text-[#94a3b8] hover:text-[#00b07d] hover:bg-transparent cursor-pointer"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Retour aux capteurs
-        </Button>
+      <Breadcrumb items={[{ label: 'Capteurs', to: '/capteurs' }, { label: id ?? '' }]} className="mb-6" />
 
+      <header className="mb-10">
         <p className="text-[12px] text-[#00b07d] tracking-[0.2em] uppercase mb-2" style={{ fontFamily: 'var(--font-mono)' }}>
           Relevés du capteur
         </p>
@@ -40,9 +33,15 @@ const SensorDetailPage = () => {
               <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${sensor.sensorStatus ? 'bg-[#00e5a0]' : 'bg-[#94a3b8]'}`} />
               {sensor.sensorStatus ? 'Actif' : 'Inactif'}
             </Badge>
-            <span className="text-[13px] text-[#64748b] tracking-wide" style={{ fontFamily: 'var(--font-mono)' }}>
-              {sensor.latitude}, {sensor.longitude}
-            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate(`/carte?lat=${sensor.latitude}&lng=${sensor.longitude}`)}
+              className="text-[#00b07d] hover:text-[#00b07d] hover:bg-[#00e5a0]/10 border border-[#00e5a0]/20 gap-1.5"
+            >
+              <MapIcon className="h-3.5 w-3.5" />
+              Voir sur la carte
+            </Button>
             <span className="text-[13px] text-[#64748b] tracking-wide" style={{ fontFamily: 'var(--font-mono)' }}>
               Zone : {sensor.zoneId}
             </span>
