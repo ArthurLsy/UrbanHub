@@ -18,7 +18,7 @@ import caensup.eadl.urbanhub.ingest.exception.InvalidMeasureException;
  */
 public class NoiseMeasure extends MeasureBase {
 
-	private static final String UNIT = "dB";
+	public static final String UNIT = "dB";
 
 	/**
 	 * Crée une mesure de niveau sonore.

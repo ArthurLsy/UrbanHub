@@ -18,7 +18,7 @@ import caensup.eadl.urbanhub.ingest.exception.InvalidMeasureException;
  */
 public class WeatherMeasure extends MeasureBase {
 
-	private static final String UNIT = "°C";
+	public static final String UNIT = "°C";
 
 	/**
 	 * Crée une mesure météorologique.
