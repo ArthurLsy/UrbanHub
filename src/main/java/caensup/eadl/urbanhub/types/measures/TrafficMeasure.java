@@ -18,7 +18,7 @@ import caensup.eadl.urbanhub.ingest.exception.InvalidMeasureException;
  */
 public class TrafficMeasure extends MeasureBase {
 
-	public static final String UNIT = "km/h";
+	private static final String UNIT = "km/h";
 
 	/**
 	 * Crée une mesure de trafic routier.

@@ -18,7 +18,7 @@ import caensup.eadl.urbanhub.ingest.exception.InvalidMeasureException;
  */
 public class AirMeasure extends MeasureBase {
 
-	public static final String UNIT = "μg/m3";
+	private static final String UNIT = "μg/m3";
 
 	/**
 	 * Crée une mesure de qualité de l'air.
