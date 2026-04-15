@@ -16,10 +16,10 @@ const PERIODS: { value: Period; label: string }[] = [
   { value: '1week', label: '1 semaine' },
 ]
 
-// mock value per entity
-const MOCK_VALUES: Record<string, { percent: string; unit: string; unitLabel: string }> = {
-  sensor: { percent: '74', unit: '68', unitLabel: 'μg/m³' },
-  zone: { percent: '58', unit: '62', unitLabel: 'dB' },
+// mock value per entity (signed)
+const MOCK_VALUES: Record<string, { percent: string; unit: string; unitLabel: string; positive: boolean }> = {
+  sensor: { percent: '+74', unit: '+68', unitLabel: 'μg/m³', positive: true },
+  zone: { percent: '-12', unit: '-8', unitLabel: 'dB', positive: false },
 }
 
 function TrendModule({ title, entity }: { title: string; entity: 'sensor' | 'zone' }) {
@@ -44,6 +44,7 @@ function TrendModule({ title, entity }: { title: string; entity: 'sensor' | 'zon
 
   const mock = MOCK_VALUES[entity]
   const displayValue = unit === 'percent' ? mock.percent : mock.unit
+  const valueColor = mock.positive ? 'text-[#00b07d]' : 'text-red-500'
 
   return (
     <Card className="p-6">
@@ -99,7 +100,7 @@ function TrendModule({ title, entity }: { title: string; entity: 'sensor' | 'zon
 
         {/* Big value square */}
         <div className="w-full rounded-xl border border-[#e2e8f0] bg-white flex flex-col items-center justify-center py-8 px-4 mt-2">
-          <p className="text-5xl font-bold tracking-wider text-[#0d0f14] leading-none" style={{ fontFamily: 'var(--font-display)' }}>
+          <p className={`text-5xl font-bold tracking-wider leading-none ${valueColor}`} style={{ fontFamily: 'var(--font-display)' }}>
             {displayValue}
           </p>
           <p className="text-[11px] text-[#94a3b8] mt-1" style={{ fontFamily: 'var(--font-mono)' }}>
