@@ -39,4 +39,8 @@ out/
 .claude
 CLAUDE.md
 
+.env.development
+.env.production
+.env
+
 node_modules
