@@ -11,8 +11,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 type Period = '1h' | '24h' | '1week'
 type Unit = 'percent' | 'unit'
-type Granularity = 'hour' | 'day' | 'week'
-type GroupBy = 'zone' | 'sensorType'
+type Selector = 'zone' | 'sensorType' | 'sensor'
+type Granularity = '1h' | '24h' | '1week'
 
 const PERIODS: { value: Period; label: string }[] = [
   { value: '1h', label: '1 heure' },
@@ -21,9 +21,9 @@ const PERIODS: { value: Period; label: string }[] = [
 ]
 
 const GRANULARITIES: { value: Granularity; label: string }[] = [
-  { value: 'hour', label: 'Heure' },
-  { value: 'day', label: 'Jour' },
-  { value: 'week', label: 'Semaine' },
+  { value: '1h', label: 'Heure' },
+  { value: '24h', label: 'Jour' },
+  { value: '1week', label: 'Semaine' },
 ]
 
 // mock bar chart data
@@ -38,8 +38,22 @@ const MOCK_BARS = [
 ]
 
 function MoyenneModule() {
-  const [groupBy, setGroupBy] = useState<GroupBy>('zone')
-  const [granularity, setGranularity] = useState<Granularity>('day')
+  const { data: sensors } = useSensors()
+  const { data: zones } = useZones()
+
+  const [selector, setSelector] = useState<Selector>('zone')
+  const [selectedId, setSelectedId] = useState<string>('')
+  const [granularity, setGranularity] = useState<Granularity>('1week')
+  const [dateFrom, setDateFrom] = useState<string>('2026-04-01')
+  const [dateTo, setDateTo] = useState<string>('2026-04-15')
+
+  const selectorOptions = selector === 'zone'
+    ? (zones ?? []).map(z => ({ value: z.zoneId, label: z.zoneId }))
+    : selector === 'sensorType'
+    ? Array.from(new Set((sensors ?? []).map((s: { sensorTypeId: string }) => s.sensorTypeId))).map(t => ({ value: t, label: t }))
+    : (sensors ?? []).map(s => ({ value: s.sensorId, label: s.sensorId }))
+
+  const selectedLabel = selectorOptions.find(o => o.value === selectedId)?.label ?? ''
 
   return (
     <Card className="p-6">
@@ -48,20 +62,40 @@ function MoyenneModule() {
         <div className="flex flex-wrap gap-4 items-end">
           <div className="flex flex-col gap-2">
             <label className="text-[10px] text-[#94a3b8] tracking-wider uppercase" style={{ fontFamily: 'var(--font-mono)' }}>
-              Grouper par
+              Sélectionner
             </label>
             <ToggleGroup
               type="single"
-              value={groupBy}
-              onValueChange={(v) => { if (v) setGroupBy(v as GroupBy) }}
+              value={selector}
+              onValueChange={(v) => {
+                if (v) {
+                  setSelector(v as Selector)
+                  setSelectedId('')
+                }
+              }}
             >
               <ToggleGroupItem value="zone" variant="outline" className="h-8 px-3 text-xs">
                 Zone
               </ToggleGroupItem>
               <ToggleGroupItem value="sensorType" variant="outline" className="h-8 px-3 text-xs">
-                Type de capteur
+                Type
+              </ToggleGroupItem>
+              <ToggleGroupItem value="sensor" variant="outline" className="h-8 px-3 text-xs">
+                Capteur
               </ToggleGroupItem>
             </ToggleGroup>
+          </div>
+
+          <div className="flex flex-col gap-2 min-w-[200px]">
+            <label className="text-[10px] text-[#94a3b8] tracking-wider uppercase" style={{ fontFamily: 'var(--font-mono)' }}>
+              {selector === 'zone' ? 'Zone' : selector === 'sensorType' ? 'Type de capteur' : 'Capteur'}
+            </label>
+            <Combobox
+              options={selectorOptions}
+              value={selectedId}
+              onChange={setSelectedId}
+              placeholder="Rechercher..."
+            />
           </div>
 
           <div className="flex flex-col gap-2">
@@ -82,54 +116,62 @@ function MoyenneModule() {
 
           <div className="flex flex-col gap-2">
             <label className="text-[10px] text-[#94a3b8] tracking-wider uppercase" style={{ fontFamily: 'var(--font-mono)' }}>
-              Période X → Y
+              Du
             </label>
-            <div className="flex items-center gap-2">
-              <Select>
-                <SelectTrigger className="h-11 text-sm w-[130px]">
-                  <SelectValue placeholder="Début" />
-                </SelectTrigger>
-                <SelectContent>
-                  {['1 jour', '3 jours', '1 semaine', '2 semaines'].map(o => (
-                    <SelectItem key={o} value={o}>{o}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <span className="text-[#94a3b8] text-xs">→</span>
-              <Select>
-                <SelectTrigger className="h-11 text-sm w-[130px]">
-                  <SelectValue placeholder="Fin" />
-                </SelectTrigger>
-                <SelectContent>
-                  {['Maintenant', '1 jour', '3 jours', '1 semaine'].map(o => (
-                    <SelectItem key={o} value={o}>{o}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="h-11 rounded-xl border border-[#e2e8f0] bg-white px-4 text-sm text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#00e5a0]"
+              style={{ fontFamily: 'var(--font-mono)' }}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-[10px] text-[#94a3b8] tracking-wider uppercase" style={{ fontFamily: 'var(--font-mono)' }}>
+              Au
+            </label>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="h-11 rounded-xl border border-[#e2e8f0] bg-white px-4 text-sm text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#00e5a0]"
+              style={{ fontFamily: 'var(--font-mono)' }}
+            />
           </div>
         </div>
 
         {/* Bar chart */}
         <div className="w-full rounded-xl border border-[#e2e8f0] bg-white p-4">
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={MOCK_BARS} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-              <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#94a3b8', fontFamily: 'var(--font-mono)' }}
-                axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: '#94a3b8', fontFamily: 'var(--font-mono)' }}
-                axisLine={false} tickLine={false} />
-              <Tooltip
-                contentStyle={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, fontSize: 12, fontFamily: 'var(--font-mono)' }}
-              />
-              <Legend
-                wrapperStyle={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: '#94a3b8' }}
-              />
-              <Bar dataKey="air" fill="#f59e0b" name="Air (μg/m³)" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="noise" fill="#ef4444" name="Bruit (dB)" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="traffic" fill="#00b07d" name="Trafic (km/h)" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          {selectedId ? (
+            <>
+              <p className="text-[11px] text-[#94a3b8] tracking-wider uppercase mb-3" style={{ fontFamily: 'var(--font-mono)' }}>
+                Moyenne — {selectedLabel} — {granularity === '1h' ? 'par heure' : granularity === '24h' ? 'par jour' : 'par semaine'}
+              </p>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={MOCK_BARS} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#94a3b8', fontFamily: 'var(--font-mono)' }}
+                    axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: '#94a3b8', fontFamily: 'var(--font-mono)' }}
+                    axisLine={false} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, fontSize: 12, fontFamily: 'var(--font-mono)' }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: '#94a3b8' }} />
+                  <Bar dataKey="air" fill="#f59e0b" name="Air (μg/m³)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="noise" fill="#ef4444" name="Bruit (dB)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="traffic" fill="#00b07d" name="Trafic (km/h)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </>
+          ) : (
+            <div className="flex items-center justify-center h-[280px]">
+              <p className="text-xs text-[#94a3b8] italic tracking-wider" style={{ fontFamily: 'var(--font-mono)' }}>
+                Sélectionnez une {selector === 'zone' ? 'zone' : selector === 'sensorType' ? 'type de capteur' : 'capteur'} pour voir la moyenne
+              </p>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
