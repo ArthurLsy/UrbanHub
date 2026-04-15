@@ -38,9 +38,6 @@ function TrendModule({ title, entity, icon }: { title: string; entity: 'sensor' 
   return (
     <Card className="p-8">
       <CardContent className="flex items-start gap-5 p-0">
-        <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
-          {icon}
-        </div>
         <div className="flex-1 min-w-0">
           <p className="text-[11px] text-[#94a3b8] tracking-[0.15em] uppercase mb-1" style={{ fontFamily: 'var(--font-mono)' }}>
             {title}
@@ -57,12 +54,12 @@ function TrendModule({ title, entity, icon }: { title: string; entity: 'sensor' 
                 placeholder="Rechercher..."
               />
             </div>
-            <div className="flex flex-col gap-2 min-w-[160px]">
+            <div className="flex flex-col gap-2 min-w-[180px]">
               <label className="text-[10px] text-[#94a3b8] tracking-wider uppercase" style={{ fontFamily: 'var(--font-mono)' }}>
                 Période
               </label>
               <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>
-                <SelectTrigger className="h-9 text-sm">
+                <SelectTrigger className="h-11 text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
