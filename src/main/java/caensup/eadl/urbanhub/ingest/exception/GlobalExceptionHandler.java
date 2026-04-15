@@ -11,6 +11,9 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+/**
+ * Traduit les exceptions métier en réponses HTTP RFC 7807 ({@link org.springframework.http.ProblemDetail}).
+ */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 

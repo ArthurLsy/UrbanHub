@@ -10,6 +10,10 @@ import java.util.HashSet;
 import java.util.UUID;
 import java.util.Set;
 
+/**
+ * Capteur physique identifié par un UUID interne et un identifiant fonctionnel ({@code sensor_id}).
+ * Créé automatiquement à la première ingestion si absent de la base.
+ */
 @Entity
 @Table(name = "sensor")
 @Getter
