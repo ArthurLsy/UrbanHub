@@ -14,4 +14,6 @@ public interface ZoneRepository extends JpaRepository<Zone, UUID> {
      * Recherche une zone par son identifiant métier.
      */
     Optional<Zone> findByZoneId(String zoneId);
+
+    boolean existsByZoneId(String zoneId);
 }

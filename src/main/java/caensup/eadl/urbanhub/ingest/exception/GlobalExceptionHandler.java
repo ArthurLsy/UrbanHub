@@ -3,6 +3,7 @@ package caensup.eadl.urbanhub.ingest.exception;
 import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -17,7 +18,7 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<ProblemDetail> handleInvalidMeasure(InvalidMeasureException ex) {
 		ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
 		detail.setTitle("Invalid measure");
-		return ResponseEntity.unprocessableEntity().body(detail);
+		return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(detail);
 	}
 
 	@ExceptionHandler(SensorNotFoundException.class)
@@ -42,6 +43,14 @@ public class GlobalExceptionHandler {
 		detail.setTitle("Zone not found");
 		detail.setProperty("zoneId", ex.getZoneId());
 		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(detail);
+	}
+
+	@ExceptionHandler(ZoneAlreadyExistsException.class)
+	public ResponseEntity<ProblemDetail> handleZoneAlreadyExists(ZoneAlreadyExistsException ex) {
+		ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+		detail.setTitle("Zone already exists");
+		detail.setProperty("zoneId", ex.getZoneId());
+		return ResponseEntity.status(HttpStatus.CONFLICT).body(detail);
 	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)

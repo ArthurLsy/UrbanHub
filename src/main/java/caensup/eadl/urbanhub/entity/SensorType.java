@@ -2,20 +2,25 @@ package caensup.eadl.urbanhub.entity;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
-import java.util.UUID;
+import lombok.Setter;
 import java.util.List;
+import java.util.UUID;
 
 @Entity
 @Table(name = "sensor_type")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class SensorType {
 
     @Id
     @Column(name = "uuid", columnDefinition = "UUID")
+    @EqualsAndHashCode.Include
     private UUID uuid = UUID.randomUUID();
 
     @Column(name = "sensor_type_id", nullable = false)
