@@ -55,9 +55,8 @@ public class ZoneService {
 
         if (dto.sensorIds() != null && !dto.sensorIds().isEmpty()) {
             for (String sensorId : dto.sensorIds()) {
-                sensorRepository.findBySensorId(sensorId).ifPresent(sensor -> {
-                    zone.getSensors().add(sensor);
-                });
+                sensorRepository.findBySensorId(sensorId).ifPresent(sensor ->
+                    zone.getSensors().add(sensor));
             }
         }
 
