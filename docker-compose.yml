@@ -34,6 +34,11 @@ services:
       db:
         condition: service_healthy
     command: ./gradlew bootRun --no-daemon
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   frontend:
     build:
@@ -44,6 +49,9 @@ services:
     container_name: urbanhub-frontend
     ports:
       - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
 
   sonarqube:
     image: sonarqube:community
