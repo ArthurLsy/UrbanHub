@@ -17,7 +17,8 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 
 /**
- * Business logic for measure consultation.
+ * Logique de consultation des mesures (lecture seule).
+ * Distinct de {@link caensup.eadl.urbanhub.ingest.service.MeasureIngestService} qui gère l'écriture.
  */
 @Service
 public class MeasureQueryService {
@@ -28,9 +29,6 @@ public class MeasureQueryService {
         this.measureRepository = measureRepository;
     }
 
-    /**
-     * Retrieves measures with optional filtering by sensor functional identifier.
-     */
     @Transactional(readOnly = true)
     public long getCount() {
         return measureRepository.count();

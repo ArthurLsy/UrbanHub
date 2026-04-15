@@ -19,6 +19,13 @@ import caensup.eadl.urbanhub.ingest.service.MeasureIngestService;
 
 import jakarta.annotation.PreDestroy;
 
+/**
+ * Souscrit au broker MQTT et achemine les messages vers {@link MeasureIngestService}.
+ *
+ * <p>Activé uniquement si {@code mqtt.enabled=true} (variable d'env {@code MQTT_ENABLED}, défaut : {@code true}).
+ * La connexion s'établit sur {@link org.springframework.boot.context.event.ApplicationReadyEvent}
+ * et se ferme proprement au shutdown via {@link jakarta.annotation.PreDestroy}.
+ */
 @Component
 @ConditionalOnProperty(name = "mqtt.enabled", havingValue = "true")
 public class MqttMeasureSubscriber {
