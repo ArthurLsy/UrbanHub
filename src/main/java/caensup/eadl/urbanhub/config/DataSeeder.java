@@ -76,6 +76,11 @@ public class DataSeeder {
             { 49.16916, -0.38202 },
     };
 
+    private static final String UNIT_AIR = "μg/m3";
+    private static final String UNIT_NOISE = "dB";
+    private static final String UNIT_TRAFFIC = "km/h";
+    private static final String UNIT_WEATHER = "°C";
+
     private String coords(double lat, double lon) {
         return lat + "," + lon;
     }
@@ -85,7 +90,7 @@ public class DataSeeder {
         return args -> {
             // 4 sensor types × 15 locations = 60 sensors
             String[] types = { "AIR", "NOISE", "TRAFFIC", "WEATHER" };
-            String[] units = { "μg/m3", "dB", "km/h", "°C" };
+            String[] units = { UNIT_AIR, UNIT_NOISE, UNIT_TRAFFIC, UNIT_WEATHER };
             double[][] ranges = {
                     { 30.0, 55.0 }, // AIR
                     { 55.0, 80.0 }, // NOISE
