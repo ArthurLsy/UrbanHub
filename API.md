@@ -230,6 +230,187 @@ GET /api/sensor-types/by-id?sensor_type_id=AIR
 
 ---
 
+## Tendances
+
+### GET /api/trends/sensor/latest-vs-previous
+Retourne la tendance du dernier point (N) par rapport au point précédent (N-1) pour un capteur donné.
+
+**Paramètres**
+| Nom | Type | Description |
+|---|---|---|
+| `sensor_id` | string | Identifiant métier du capteur |
+
+```
+GET /api/trends/sensor/latest-vs-previous?sensor_id=sensor-centre-1
+```
+
+**Réponse** : objet TrendDto
+```json
+{
+  "sensorId": "sensor-centre-1",
+  "zoneId": "CENTRE",
+  "timestamp": "2026-04-15T11:00:00Z",
+  "value": 10.0,
+  "previousValue": 8.0,
+  "changeAbsolute": 2.0,
+  "changePercent": 25.0,
+  "comparedTo": "N-1"
+}
+```
+
+> Remarque : si le capteur n'a pas au moins deux mesures, la route renvoie `null` (implémentation actuelle).
+
+---
+
+### GET /api/trends/sensor/latest-vs-24h
+Compare le dernier point (N) au point le plus proche situé à ~24 heures avant (N-24h).
+
+**Paramètres**
+| Nom | Type | Description |
+|---|---|---|
+| `sensor_id` | string | Identifiant métier du capteur |
+
+```
+GET /api/trends/sensor/latest-vs-24h?sensor_id=sensor-centre-1
+```
+
+**Réponse** : objet TrendDto
+```json
+{
+  "sensorId": "sensor-centre-1",
+  "zoneId": "CENTRE",
+  "timestamp": "2026-04-15T11:00:00Z",
+  "value": 10.0,
+  "previousValue": 6.0,
+  "changeAbsolute": 4.0,
+  "changePercent": 66.666664,
+  "comparedTo": "N-24h"
+}
+```
+
+> Logique : le service recherche la mesure la plus proche de `timestamp - 24h` (avant ou après) et l'utilise comme référence.
+
+---
+
+### GET /api/trends/zone/period
+Calcule, pour chaque capteur d'une zone sur une période donnée, la tendance entre la dernière et la précédente mesure présentes dans cette fenêtre temporelle (pas de moyenne, seulement différences).
+
+**Paramètres**
+| Nom | Type | Description |
+|---|---|---|
+| `zone_id` | string | Identifiant métier de la zone |
+| `start` | string (ISO) | Début de la période (ex: `2026-04-14T10:00:00Z`) |
+| `end` | string (ISO) | Fin de la période (ex: `2026-04-15T12:00:00Z`) |
+
+```
+GET /api/trends/zone/period?zone_id=CENTRE&start=2026-04-14T10:00:00Z&end=2026-04-15T12:00:00Z
+```
+
+**Réponse** : liste d'objets TrendDto
+```json
+[
+  {
+    "sensorId": "sensor-centre-1",
+    "zoneId": "CENTRE",
+    "timestamp": "2026-04-15T11:00:00Z",
+    "value": 10.0,
+    "previousValue": 8.0,
+    "changeAbsolute": 2.0,
+    "changePercent": 25.0,
+    "comparedTo": "period-last-vs-previous"
+  },
+  {
+    "sensorId": "sensor-centre-2",
+    "zoneId": "CENTRE",
+    "timestamp": "2026-04-15T11:00:00Z",
+    "value": 70.0,
+    "previousValue": 65.0,
+    "changeAbsolute": 5.0,
+    "changePercent": 7.6923075,
+    "comparedTo": "period-last-vs-previous"
+  }
+]
+```
+
+> Remarque : un capteur doit avoir au moins deux mesures dans la période pour apparaître dans la réponse.
+
+---
+
+### GET /api/trends/sensor/period
+Calcule la tendance pour un capteur donné à l'intérieur d'une fenêtre temporelle : la dernière mesure présente dans la fenêtre (N) comparée à la précédente (N-1) elle aussi présente dans la fenêtre.
+
+**Paramètres**
+| Nom | Type | Description |
+|---|---|---|
+| `sensor_id` | string | Identifiant métier du capteur |
+| `start` | string (ISO) | Début de la période (ex: `2026-04-10T09:00:00Z`) |
+| `end` | string (ISO) | Fin de la période (ex: `2026-04-10T12:00:00Z`) |
+
+```
+GET /api/trends/sensor/period?sensor_id=sensor-centre-1&start=2026-04-14T10:00:00Z&end=2026-04-15T12:00:00Z
+```
+
+**Réponse** : objet TrendDto (ou `null` si pas au moins 2 mesures dans la fenêtre)
+```json
+{
+  "sensorId": "sensor-centre-1",
+  "zoneId": "CENTRE",
+  "timestamp": "2026-04-15T11:00:00Z",
+  "value": 10.0,
+  "previousValue": 8.0,
+  "changeAbsolute": 2.0,
+  "changePercent": 25.0,
+  "comparedTo": "period-N-1"
+}
+```
+
+> Remarque : la période est inclusif ; la méthode ne calcule aucune moyenne, seulement la différence entre les deux dernières mesures présentes dans la fenêtre.
+
+---
+
+### GET /api/trends/period
+Calcule la tendance pour tous les capteurs (chaque capteur) sur une période donnée : pour chaque capteur, la dernière mesure dans la fenêtre est comparée à la précédente (toutes deux contenues dans la fenêtre).
+
+**Paramètres**
+| Nom | Type | Description |
+|---|---|---|
+| `start` | string (ISO) | Début de la période (ex: `2026-04-11T08:00:00Z`) |
+| `end` | string (ISO) | Fin de la période (ex: `2026-04-11T12:00:00Z`) |
+
+```
+GET /api/trends/period?start=2026-04-11T08:00:00Z&end=2026-04-11T12:00:00Z
+```
+
+**Réponse** : liste d'objets TrendDto (une entrée par capteur ayant au moins 2 mesures dans la fenêtre)
+```json
+[
+  {
+    "sensorId": "sensor-centre-1",
+    "zoneId": "CENTRE",
+    "timestamp": "2026-04-15T11:00:00Z",
+    "value": 10.0,
+    "previousValue": 8.0,
+    "changeAbsolute": 2.0,
+    "changePercent": 25.0,
+    "comparedTo": "period-last-vs-previous"
+  },
+  {
+    "sensorId": "sensor-north-1",
+    "zoneId": "NORTH",
+    "timestamp": "2026-04-11T11:00:00Z",
+    "value": 4.0,
+    "previousValue": 3.0,
+    "changeAbsolute": 1.0,
+    "changePercent": 33.333336,
+    "comparedTo": "period-last-vs-previous"
+  }
+]
+```
+
+> Remarque : Les capteurs ayant moins de 2 mesures dans la période ne figurent pas dans la réponse.
+
+---
+
 ## Codes d'erreur
 
 | Code | Cas |
