@@ -46,89 +46,72 @@ function TrendModule({ title, entity }: { title: string; entity: 'sensor' | 'zon
   const displayValue = unit === 'percent' ? mock.percent : mock.unit
 
   return (
-    <Card className="p-8">
-      <CardContent className="flex items-start gap-5 p-0">
-        <div className="w-14 h-14 rounded-xl flex items-center justify-center text-[#00b07d] shrink-0" style={{ background: 'rgba(0,229,160,0.1)' }}>
-          {entity === 'sensor' ? (
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M6.3 6.3a8 8 0 0 0 0 11.4M17.7 6.3a8 8 0 0 1 0 11.4M3.5 3.5a13 13 0 0 0 0 17M20.5 3.5a13 13 0 0 1 0 17" />
-            </svg>
-          ) : (
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="7" height="7" />
-              <rect x="14" y="3" width="7" height="7" />
-              <rect x="14" y="14" width="7" height="7" />
-              <rect x="3" y="14" width="7" height="7" />
-            </svg>
-          )}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2 mb-3">
-            <p className="text-[11px] text-[#94a3b8] tracking-[0.15em] uppercase" style={{ fontFamily: 'var(--font-mono)' }}>
-              {title}
-            </p>
-            <ToggleGroup
-              type="single"
-              value={unit}
-              onValueChange={(v) => { if (v) setUnit(v as Unit) }}
-            >
-              <ToggleGroupItem value="percent" variant="outline" className="h-6 px-2 text-[10px]">
-                %
-              </ToggleGroupItem>
-              <ToggleGroupItem value="unit" variant="outline" className="h-6 px-2 text-[10px]">
-                {mock.unitLabel}
-              </ToggleGroupItem>
-            </ToggleGroup>
-          </div>
-
-          <div className="flex flex-wrap gap-3 items-end">
-            <div className="flex flex-col gap-2 min-w-[180px]">
-              <label className="text-[10px] text-[#94a3b8] tracking-wider uppercase" style={{ fontFamily: 'var(--font-mono)' }}>
-                {entity === 'sensor' ? 'Capteur' : 'Zone'}
-              </label>
-              <Combobox
-                options={options}
-                value={selected}
-                onChange={setSelected}
-                placeholder="Rechercher..."
-              />
-            </div>
-            <div className="flex flex-col gap-2 min-w-[180px]">
-              <label className="text-[10px] text-[#94a3b8] tracking-wider uppercase" style={{ fontFamily: 'var(--font-mono)' }}>
-                Période
-              </label>
-              <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>
-                <SelectTrigger className="h-11 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PERIODS.map(p => (
-                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {selected && (
-            <p className="text-xs text-[#94a3b8] tracking-wider mt-3" style={{ fontFamily: 'var(--font-mono)' }}>
-              Données de tendance pour{' '}
-              <span className="text-[#00b07d] font-semibold">{selected}</span>
-              {' '}— {period}
-            </p>
-          )}
+    <Card className="p-6">
+      <CardContent className="p-0 flex flex-col items-center gap-4">
+        {/* Header row */}
+        <div className="flex items-center justify-between w-full gap-3">
+          <p className="text-[11px] text-[#94a3b8] tracking-[0.15em] uppercase" style={{ fontFamily: 'var(--font-mono)' }}>
+            {title}
+          </p>
+          <ToggleGroup
+            type="single"
+            value={unit}
+            onValueChange={(v) => { if (v) setUnit(v as Unit) }}
+          >
+            <ToggleGroupItem value="percent" variant="outline" className="h-6 px-2 text-[10px]">
+              %
+            </ToggleGroupItem>
+            <ToggleGroupItem value="unit" variant="outline" className="h-6 px-2 text-[10px]">
+              {mock.unitLabel}
+            </ToggleGroupItem>
+          </ToggleGroup>
         </div>
 
+        {/* Filters row */}
+        <div className="flex flex-wrap gap-3 w-full">
+          <div className="flex-1 min-w-[140px]">
+            <label className="text-[10px] text-[#94a3b8] tracking-wider uppercase mb-1.5 block" style={{ fontFamily: 'var(--font-mono)' }}>
+              {entity === 'sensor' ? 'Capteur' : 'Zone'}
+            </label>
+            <Combobox
+              options={options}
+              value={selected}
+              onChange={setSelected}
+              placeholder="Rechercher..."
+            />
+          </div>
+          <div className="flex-1 min-w-[120px]">
+            <label className="text-[10px] text-[#94a3b8] tracking-wider uppercase mb-1.5 block" style={{ fontFamily: 'var(--font-mono)' }}>
+              Période
+            </label>
+            <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>
+              <SelectTrigger className="h-11 text-sm w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PERIODS.map(p => (
+                  <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Big value square */}
+        <div className="w-full rounded-xl border border-[#e2e8f0] bg-white flex flex-col items-center justify-center py-8 px-4 mt-2">
+          <p className="text-5xl font-bold tracking-wider text-[#0d0f14] leading-none" style={{ fontFamily: 'var(--font-display)' }}>
+            {displayValue}
+          </p>
+          <p className="text-[11px] text-[#94a3b8] mt-1" style={{ fontFamily: 'var(--font-mono)' }}>
+            {unit === 'percent' ? '%' : mock.unitLabel}
+          </p>
+        </div>
+
+        {/* Info line */}
         {selected && (
-          <div className="text-right shrink-0">
-            <p className="text-4xl font-bold tracking-wider text-[#0d0f14] leading-none" style={{ fontFamily: 'var(--font-display)' }}>
-              {displayValue}
-            </p>
-            <p className="text-[10px] text-[#94a3b8] mt-0.5" style={{ fontFamily: 'var(--font-mono)' }}>
-              {unit === 'percent' ? '%' : mock.unitLabel}
-            </p>
-          </div>
+          <p className="text-[10px] text-[#94a3b8] tracking-wider" style={{ fontFamily: 'var(--font-mono)' }}>
+            {selected} — {period}
+          </p>
         )}
       </CardContent>
     </Card>
