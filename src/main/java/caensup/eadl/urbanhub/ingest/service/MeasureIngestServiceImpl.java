@@ -57,6 +57,7 @@ public class MeasureIngestServiceImpl implements MeasureIngestService {
                             lat = Double.parseDouble(parts[0].trim());
                             lon = Double.parseDouble(parts[1].trim());
                         } catch (NumberFormatException ignored) {
+                            throw new InvalidMeasureException("Invalid location format");
                         }
                     } else if (json.location() != null && json.location().contains(";")) {
                         try {

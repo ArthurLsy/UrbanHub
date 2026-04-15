@@ -8,10 +8,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
+
 
 import caensup.eadl.urbanhub.dto.CreateZoneDto;
-import caensup.eadl.urbanhub.dto.SensorDto;
+
 import caensup.eadl.urbanhub.dto.UpdateZoneDto;
 import caensup.eadl.urbanhub.dto.ZoneDto;
 import caensup.eadl.urbanhub.entity.Sensor;
@@ -136,7 +136,6 @@ class ZoneServiceTest {
         @DisplayName("crée une zone avec capteurs associés")
         void createShouldCreateZoneWithSensors() {
             Sensor sensor = buildSensor("SENSOR_01", "AIR");
-            Zone saved = buildZone("CENTRE");
 
             // Capture the entity that gets saved so we can mock findById to return it
             final Zone[] capturedZone = new Zone[1];
@@ -171,7 +170,7 @@ class ZoneServiceTest {
             when(zoneRepository.existsByZoneId("CENTRE")).thenReturn(true);
 
             assertThrows(ZoneAlreadyExistsException.class,
-                () -> zoneService.create(new CreateZoneDto("CENTRE", List.of())));
+                    () -> zoneService.create(new CreateZoneDto("CENTRE", List.of())));
         }
 
         @Test
@@ -222,7 +221,6 @@ class ZoneServiceTest {
                 return z;
             });
             when(zoneRepository.findById(any(UUID.class))).thenAnswer((InvocationOnMock inv) -> {
-                UUID id = inv.getArgument(0);
                 zone.getSensors().add(sensorB);
                 return Optional.of(zone);
             });
@@ -240,7 +238,7 @@ class ZoneServiceTest {
             when(zoneRepository.findByZoneId("UNKNOWN")).thenReturn(Optional.empty());
 
             assertThrows(ZoneNotFoundException.class,
-                () -> zoneService.update("UNKNOWN", new UpdateZoneDto("X", List.of())));
+                    () -> zoneService.update("UNKNOWN", new UpdateZoneDto("X", List.of())));
         }
 
         @Test
@@ -251,7 +249,7 @@ class ZoneServiceTest {
             when(zoneRepository.existsByZoneId("NORD")).thenReturn(true);
 
             assertThrows(ZoneAlreadyExistsException.class,
-                () -> zoneService.update("CENTRE", new UpdateZoneDto("NORD", List.of())));
+                    () -> zoneService.update("CENTRE", new UpdateZoneDto("NORD", List.of())));
         }
     }
 

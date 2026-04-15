@@ -4,7 +4,6 @@ import caensup.eadl.urbanhub.dto.CreateZoneDto;
 import caensup.eadl.urbanhub.dto.SensorDto;
 import caensup.eadl.urbanhub.dto.UpdateZoneDto;
 import caensup.eadl.urbanhub.dto.ZoneDto;
-import caensup.eadl.urbanhub.entity.Sensor;
 import caensup.eadl.urbanhub.entity.Zone;
 import caensup.eadl.urbanhub.ingest.exception.ZoneAlreadyExistsException;
 import caensup.eadl.urbanhub.ingest.exception.ZoneNotFoundException;
@@ -55,8 +54,7 @@ public class ZoneService {
 
         if (dto.sensorIds() != null && !dto.sensorIds().isEmpty()) {
             for (String sensorId : dto.sensorIds()) {
-                sensorRepository.findBySensorId(sensorId).ifPresent(sensor ->
-                    zone.getSensors().add(sensor));
+                sensorRepository.findBySensorId(sensorId).ifPresent(sensor -> zone.getSensors().add(sensor));
             }
         }
 
@@ -79,9 +77,7 @@ public class ZoneService {
         if (dto.sensorIds() != null) {
             zone.getSensors().clear();
             for (String sensorId : dto.sensorIds()) {
-                sensorRepository.findBySensorId(sensorId).ifPresent(sensor -> {
-                    zone.getSensors().add(sensor);
-                });
+                sensorRepository.findBySensorId(sensorId).ifPresent(sensor -> zone.getSensors().add(sensor));
             }
         }
 
@@ -97,10 +93,11 @@ public class ZoneService {
     }
 
     private ZoneDto toDto(Zone zone) {
-        List<SensorDto> sensorDtos = zone.getSensors() == null ? List.of() :
-            zone.getSensors().stream()
-                .map(s -> new SensorDto(s.getUuid(), s.getSensorId(), s.getSensorType().getSensorTypeId(), s.getStatus()))
-                .toList();
+        List<SensorDto> sensorDtos = zone.getSensors() == null ? List.of()
+                : zone.getSensors().stream()
+                        .map(s -> new SensorDto(s.getUuid(), s.getSensorId(), s.getSensorType().getSensorTypeId(),
+                                s.getStatus()))
+                        .toList();
         return new ZoneDto(zone.getUuid(), zone.getZoneId(), sensorDtos);
     }
 }
