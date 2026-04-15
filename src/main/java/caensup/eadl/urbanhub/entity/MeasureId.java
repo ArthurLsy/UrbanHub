@@ -26,7 +26,7 @@ import java.util.UUID;
 @EqualsAndHashCode
 public class MeasureId implements Serializable {
 
-    @Column(name = "timestamp", columnDefinition = "TIMESTAMPTZ", nullable = false)
+    @Column(name = "timestamp", nullable = false)
     private OffsetDateTime timestamp;
 
     @Column(name = "sensor_uuid", columnDefinition = "UUID", nullable = false)

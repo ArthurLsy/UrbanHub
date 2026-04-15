@@ -10,6 +10,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -74,7 +75,11 @@ public class MeasureQueryService {
 
     private MeasureDto toDto(Measure measure) {
         Sensor sensor = measure.getSensor();
-        String zoneId = sensor.getZone() != null ? sensor.getZone().getZoneId() : null;
+        String zoneIds = sensor.getZones() == null || sensor.getZones().isEmpty()
+                ? null
+                : sensor.getZones().stream()
+                        .map(z -> z.getZoneId())
+                        .collect(Collectors.joining(","));
 
         return new MeasureDto(
                 measure.getId().getTimestamp() != null ? UUID.randomUUID() : null,
@@ -86,7 +91,7 @@ public class MeasureQueryService {
                 sensor.getLatitude(),
                 sensor.getLongitude(),
                 sensor.getStatus(),
-                zoneId,
+                zoneIds,
                 sensor.getSensorType().getSensorTypeId()
         );
     }

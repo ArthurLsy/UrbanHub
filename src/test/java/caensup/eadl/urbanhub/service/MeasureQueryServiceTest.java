@@ -14,7 +14,9 @@ import caensup.eadl.urbanhub.entity.SensorType;
 import caensup.eadl.urbanhub.entity.Zone;
 import caensup.eadl.urbanhub.repository.MeasureRepository;
 import java.time.OffsetDateTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -127,6 +129,8 @@ class MeasureQueryServiceTest {
         Zone zone = new Zone();
         zone.setUuid(UUID.randomUUID());
         zone.setZoneId("ZONE-001");
+        Set<Zone> zones = new HashSet<>();
+        zones.add(zone);
 
         SensorType sensorType = new SensorType();
         sensorType.setUuid(UUID.randomUUID());
@@ -138,7 +142,7 @@ class MeasureQueryServiceTest {
         sensor.setLatitude(49.1829);
         sensor.setLongitude(-0.3707);
         sensor.setStatus(true);
-        sensor.setZone(zone);
+        sensor.setZones(zones);
         sensor.setSensorType(sensorType);
 
         Measure measure = new Measure();
