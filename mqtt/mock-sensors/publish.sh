@@ -5,46 +5,70 @@ BROKER="${MQTT_BROKER:-mosquitto}"
 PORT="${MQTT_PORT:-1883}"
 INTERVAL="${PUBLISH_INTERVAL:-5}"
 TOPIC_PREFIX="urbanhub/sensors"
+LOCATIONS_FILE="/data/caen-locations.json"
+SENSORS_PER_TYPE=500
 
 echo "Waiting for broker $BROKER:$PORT ..."
 until mosquitto_pub -h "$BROKER" -p "$PORT" -t "ping" -m "hello" -q 0 2>/dev/null; do
   sleep 1
 done
-echo "Broker ready – publishing every ${INTERVAL}s"
+echo "Broker ready – $((SENSORS_PER_TYPE * 4)) sensors, publishing every ${INTERVAL}s"
+
+# Pre-extract locations into flat arrays (line N = location N)
+# Types get consecutive slices: air=0-499, noise=500-999, traffic=1000-1499, weather=1500-1999
+LATS=$(python3 -c "
+import json
+locs = json.load(open('$LOCATIONS_FILE'))
+for l in locs:
+    print(l['lat'])
+")
+LONS=$(python3 -c "
+import json
+locs = json.load(open('$LOCATIONS_FILE'))
+for l in locs:
+    print(l['lon'])
+")
+
+# Store in temp files for fast line-based access
+echo "$LATS" > /tmp/lats.txt
+echo "$LONS" > /tmp/lons.txt
+
+get_location() {
+  line=$((${1} + 1))
+  lat=$(sed -n "${line}p" /tmp/lats.txt)
+  lon=$(sed -n "${line}p" /tmp/lons.txt)
+  echo "${lat};${lon}"
+}
 
 rand_float() {
-  min=$1 max=$2
-  awk -v min="$min" -v max="$max" 'BEGIN { srand(); printf "%.1f", min + rand() * (max - min) }'
+  awk -v min="$1" -v max="$2" -v seed="$RANDOM" 'BEGIN { srand(seed); printf "%.1f", min + rand() * (max - min) }'
 }
 
 rand_int() {
-  min=$1 max=$2
-  awk -v min="$min" -v max="$max" 'BEGIN { srand(); printf "%d", min + rand() * (max - min) }'
+  awk -v min="$1" -v max="$2" -v seed="$RANDOM" 'BEGIN { srand(seed); printf "%d", min + rand() * (max - min) }'
+}
+
+publish_sensor() {
+  type=$1 idx=$2 loc_offset=$3 val=$4 unit=$5
+  loc_index=$((loc_offset + idx))
+  loc=$(get_location "$loc_index")
+  sid=$(printf "sensor-%s-%03d" "$type" "$((idx + 1))")
+  mosquitto_pub -h "$BROKER" -p "$PORT" -t "$TOPIC_PREFIX/$type/$sid" -m \
+    "{\"sensor_id\":\"$sid\",\"type\":\"$type\",\"timestamp\":\"$TS\",\"location\":\"$loc\",\"value\":$val,\"unit\":\"$unit\"}"
 }
 
 while true; do
   TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-  # Air quality sensor (PM2.5 µg/m³)
-  VAL=$(rand_float 5 80)
-  mosquitto_pub -h "$BROKER" -p "$PORT" -t "$TOPIC_PREFIX/air/sensor-air-001" -m \
-    "{\"sensor_id\":\"sensor-air-001\",\"type\":\"air\",\"timestamp\":\"$TS\",\"location\":\"49.1829;-0.3707\",\"value\":$VAL,\"unit\":\"µg/m³\"}"
+  i=0
+  while [ "$i" -lt "$SENSORS_PER_TYPE" ]; do
+    publish_sensor "air"     "$i" 0    "$(rand_float 5 80)"   "µg/m³"
+    publish_sensor "noise"   "$i" 500  "$(rand_float 30 90)"  "dB"
+    publish_sensor "traffic" "$i" 1000 "$(rand_int 0 120)"    "vehicles/min"
+    publish_sensor "weather" "$i" 1500 "$(rand_float -5 35)"  "°C"
+    i=$((i + 1))
+  done
 
-  # Noise sensor (dB)
-  VAL=$(rand_float 30 90)
-  mosquitto_pub -h "$BROKER" -p "$PORT" -t "$TOPIC_PREFIX/noise/sensor-noise-001" -m \
-    "{\"sensor_id\":\"sensor-noise-001\",\"type\":\"noise\",\"timestamp\":\"$TS\",\"location\":\"49.1812;-0.3695\",\"value\":$VAL,\"unit\":\"dB\"}"
-
-  # Traffic sensor (vehicles/min)
-  VAL=$(rand_int 0 120)
-  mosquitto_pub -h "$BROKER" -p "$PORT" -t "$TOPIC_PREFIX/traffic/sensor-traffic-001" -m \
-    "{\"sensor_id\":\"sensor-traffic-001\",\"type\":\"traffic\",\"timestamp\":\"$TS\",\"location\":\"49.1835;-0.3720\",\"value\":$VAL,\"unit\":\"vehicles/min\"}"
-
-  # Weather sensor (°C)
-  VAL=$(rand_float -5 35)
-  mosquitto_pub -h "$BROKER" -p "$PORT" -t "$TOPIC_PREFIX/weather/sensor-weather-001" -m \
-    "{\"sensor_id\":\"sensor-weather-001\",\"type\":\"weather\",\"timestamp\":\"$TS\",\"location\":\"49.1820;-0.3710\",\"value\":$VAL,\"unit\":\"°C\"}"
-
-  echo "[$TS] Published 4 measures"
+  echo "[$TS] Published $((SENSORS_PER_TYPE * 4)) measures"
   sleep "$INTERVAL"
 done
