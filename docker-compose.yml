@@ -12,7 +12,7 @@ services:
       - urbanhub-db-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "psql -U urbanhub -d urbanhub -c 'SELECT 1'"]
-      interval: 5s
+      interval: 60s
       timeout: 5s
       retries: 10
 
@@ -22,35 +22,64 @@ services:
       dockerfile: Dockerfile
     container_name: urbanhub-backend
     environment:
-      SPRING_PROFILES_ACTIVE: production
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/urbanhub
       SPRING_DATASOURCE_USERNAME: urbanhub
       SPRING_DATASOURCE_PASSWORD: urbanhub
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
-      SPRING_JPA_SHOW_SQL: "false"
+      SPRING_JPA_SHOW_SQL: "true"
+      MQTT_ENABLED: "true"
+      MQTT_BROKER_URL: tcp://mosquitto:1883
+      MQTT_CLIENT_ID: urbanhub-backend
+      MQTT_TOPIC: urbanhub/sensors/#
     ports:
       - "8080:8080"
+    volumes:
+      - ./src:/app/src
     depends_on:
       db:
         condition: service_healthy
+      mosquitto:
+        condition: service_healthy
     command: ./gradlew bootRun --no-daemon
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   frontend:
     build:
       context: ./front
       dockerfile: Dockerfile
-      args:
-        - VITE_API_URL=
     container_name: urbanhub-frontend
     ports:
       - "3000:3000"
+    volumes:
+      - ./front/src:/app/src
+      - ./front/package.json:/app/package.json
+    environment:
+      VITE_API_URL: http://localhost:8080
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: urbanhub-mosquitto
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-h", "localhost", "-t", "ping", "-E", "-W", "1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  mock-sensors:
+    build:
+      context: ./mqtt/mock-sensors
+    container_name: urbanhub-mock-sensors
+    environment:
+      MQTT_BROKER: mosquitto
+      MQTT_PORT: 1883
+      PUBLISH_INTERVAL: 5
+    volumes:
+      - ./caen-locations.json:/data/caen-locations.json:ro
     depends_on:
-      backend:
+      mosquitto:
         condition: service_healthy
 
   sonarqube:
