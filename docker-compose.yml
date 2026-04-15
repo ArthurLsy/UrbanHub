@@ -22,15 +22,14 @@ services:
       dockerfile: Dockerfile
     container_name: urbanhub-backend
     environment:
+      SPRING_PROFILES_ACTIVE: production
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/urbanhub
       SPRING_DATASOURCE_USERNAME: urbanhub
       SPRING_DATASOURCE_PASSWORD: urbanhub
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
-      SPRING_JPA_SHOW_SQL: "true"
+      SPRING_JPA_SHOW_SQL: "false"
     ports:
       - "8080:8080"
-    volumes:
-      - ./src:/app/src
     depends_on:
       db:
         condition: service_healthy
@@ -40,14 +39,11 @@ services:
     build:
       context: ./front
       dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=
     container_name: urbanhub-frontend
     ports:
       - "3000:3000"
-    volumes:
-      - ./front/src:/app/src
-      - ./front/package.json:/app/package.json
-    environment:
-      VITE_API_URL: http://localhost:8080
 
   sonarqube:
     image: sonarqube:community
