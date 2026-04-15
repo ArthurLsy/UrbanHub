@@ -13,22 +13,22 @@ import { Breadcrumb } from '@/components/ui/breadcrumb'
 
 type Period = '1h' | '24h' | '1w' | '1m' | '90d' | '1y'
 const PERIOD_LABELS: Record<Period, string> = {
-  '1h':  'Dernière heure',
+  '1h': 'Dernière heure',
   '24h': '24 heures',
-  '1w':  '1 semaine',
-  '1m':  '1 mois',
+  '1w': '1 semaine',
+  '1m': '1 mois',
   '90d': '90 jours',
-  '1y':  '1 an',
+  '1y': '1 an',
 }
 
 const msOf = (p: Period): number => {
   switch (p) {
-    case '1h':  return 60 * 60 * 1000
+    case '1h': return 60 * 60 * 1000
     case '24h': return 24 * 60 * 60 * 1000
-    case '1w':  return 7 * 24 * 60 * 60 * 1000
-    case '1m':  return 30 * 24 * 60 * 60 * 1000
+    case '1w': return 7 * 24 * 60 * 60 * 1000
+    case '1m': return 30 * 24 * 60 * 60 * 1000
     case '90d': return 90 * 24 * 60 * 60 * 1000
-    case '1y':  return 365 * 24 * 60 * 60 * 1000
+    case '1y': return 365 * 24 * 60 * 60 * 1000
   }
 }
 
@@ -113,13 +113,13 @@ const ComparisonPage = () => {
 
   return (
     <div>
-      <Breadcrumb items={[{ label: 'Comparaison' }]} className="mb-6" />
+      <Breadcrumb items={[{ label: 'Comparer' }]} className="mb-6" />
       <header className="mb-10">
         <p className="text-[12px] text-[#00b07d] tracking-[0.2em] uppercase mb-2" style={{ fontFamily: 'var(--font-mono)' }}>
           Analyse comparative
         </p>
         <h1 className="text-5xl font-bold tracking-wider text-[#0d0f14] uppercase" style={{ fontFamily: 'var(--font-display)' }}>
-          Comparaison
+          Comparer
         </h1>
         <div className="mt-4 h-1 w-20 bg-[#00e5a0]" />
       </header>

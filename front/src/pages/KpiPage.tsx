@@ -21,9 +21,9 @@ const PERIODS: { value: Period; label: string }[] = [
 ]
 
 const GRANULARITIES: { value: Granularity; label: string }[] = [
-  { value: '1h', label: 'Heure' },
-  { value: '24h', label: 'Jour' },
-  { value: '1week', label: 'Semaine' },
+  { value: '1h', label: '1h' },
+  { value: '24h', label: '24h' },
+  { value: '1week', label: '1 semaine' },
 ]
 
 // mock bar chart data
@@ -50,8 +50,8 @@ function MoyenneModule() {
   const selectorOptions = selector === 'zone'
     ? (zones ?? []).map(z => ({ value: z.zoneId, label: z.zoneId }))
     : selector === 'sensorType'
-    ? Array.from(new Set((sensors ?? []).map((s: { sensorTypeId: string }) => s.sensorTypeId))).map(t => ({ value: t, label: t }))
-    : (sensors ?? []).map(s => ({ value: s.sensorId, label: s.sensorId }))
+      ? Array.from(new Set((sensors ?? []).map((s: { sensorTypeId: string }) => s.sensorTypeId))).map(t => ({ value: t, label: t }))
+      : (sensors ?? []).map(s => ({ value: s.sensorId, label: s.sensorId }))
 
   const selectedLabel = selectorOptions.find(o => o.value === selectedId)?.label ?? ''
 
