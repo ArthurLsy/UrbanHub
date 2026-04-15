@@ -118,9 +118,9 @@ public class DataSeeder {
             zoneRepository.saveAll(List.of(z1, z2));
 
             // create sensors
-            Sensor s1 = new Sensor(); s1.setSensorId("sensor-centre-1"); s1.setLatitude(45.0); s1.setLongitude(3.0); s1.setStatus(true); s1.setZones((Set<Zone>) z1); s1.setSensorType(air);
-            Sensor s2 = new Sensor(); s2.setSensorId("sensor-centre-2"); s2.setLatitude(45.1); s2.setLongitude(3.1); s2.setStatus(true); s2.setZones((Set<Zone>) z1); s2.setSensorType(noise);
-            Sensor s3 = new Sensor(); s3.setSensorId("sensor-north-1"); s3.setLatitude(45.5); s3.setLongitude(3.5); s3.setStatus(true); s3.setZones((Set<Zone>) z2); s3.setSensorType(air);
+            Sensor s1 = new Sensor(); s1.setSensorId("sensor-centre-1"); s1.setLatitude(45.0); s1.setLongitude(3.0); s1.setStatus(true); s1.setZones(Set.of(z1)); s1.setSensorType(air);
+            Sensor s2 = new Sensor(); s2.setSensorId("sensor-centre-2"); s2.setLatitude(45.1); s2.setLongitude(3.1); s2.setStatus(true); s2.setZones(Set.of(z1)); s2.setSensorType(noise);
+            Sensor s3 = new Sensor(); s3.setSensorId("sensor-north-1"); s3.setLatitude(45.5); s3.setLongitude(3.5); s3.setStatus(true); s3.setZones(Set.of(z2)); s3.setSensorType(air);
             // 4 sensor types × 15 locations = 60 sensors
             String[] types = { "AIR", "NOISE", "TRAFFIC", "WEATHER" };
             String[] units = { "μg/m3", "dB", "km/h", "°C" };
@@ -134,51 +134,43 @@ public class DataSeeder {
             sensorRepository.saveAll(List.of(s1, s2, s3));
             int numLocations = 15;
 
-            // create measures for sensors (several timestamps including ~24h apart)
+            // Fixed sample rows (several timestamps including ~24h apart) — once, not per ingest iteration
             OffsetDateTime now = OffsetDateTime.now();
+            Measure m1 = new Measure();
+            m1.setId(new MeasureId(now.minusHours(1), UUID.randomUUID()));
+            m1.setValue(10.0f); m1.setUnit("ug/m3"); m1.setSensor(s1);
+            Measure m2 = new Measure();
+            m2.setId(new MeasureId(now.minusHours(2), UUID.randomUUID()));
+            m2.setValue(8.0f); m2.setUnit("ug/m3"); m2.setSensor(s1);
+            Measure m3 = new Measure();
+            m3.setId(new MeasureId(now.minusHours(24).plusMinutes(10), UUID.randomUUID()));
+            m3.setValue(6.0f); m3.setUnit("ug/m3"); m3.setSensor(s1);
+            Measure m4 = new Measure();
+            m4.setId(new MeasureId(now.minusHours(1), UUID.randomUUID()));
+            m4.setValue(70.0f); m4.setUnit("dB"); m4.setSensor(s2);
+            Measure m5 = new Measure();
+            m5.setId(new MeasureId(now.minusHours(25), UUID.randomUUID()));
+            m5.setValue(65.0f); m5.setUnit("dB"); m5.setSensor(s2);
+            Measure m6 = new Measure();
+            m6.setId(new MeasureId(now.minusHours(1), UUID.randomUUID()));
+            m6.setValue(12.0f); m6.setUnit("ug/m3"); m6.setSensor(s3);
+            measureRepository.saveAll(List.of(m1, m2, m3, m4, m5, m6));
+
+            // 48h of data, 1 measurement every 30 min per synthetic sensor id
             for (int t = 0; t < types.length; t++) {
+                double[] range = ranges[t];
                 for (int i = 0; i < numLocations; i++) {
                     String sensorId = types[t] + "_" + (i + 1);
-                    double[] range = ranges[t];
-                    // Base location from caen-locations.json + small per-sensor jitter (±30m)
-                    // so same-location sensors don't overlap on the map
                     double jitterLat = (Math.random() - 0.5) * 0.0006;
                     double jitterLon = (Math.random() - 0.5) * 0.0006;
                     double lat = CAEN_LOCATIONS[i][0] + jitterLat;
                     double lon = CAEN_LOCATIONS[i][1] + jitterLon;
-
-            Measure m1 = new Measure();
-            m1.setId(new MeasureId(now.minusHours(1), UUID.randomUUID()));
-            m1.setValue(10.0f); m1.setUnit("ug/m3"); m1.setSensor(s1);
-                    // 48h of data, 1 measurement every 30 min → 97 per sensor
                     for (int step = 48 * 2; step >= 0; step--) {
                         Instant ts = Instant.now().minus(step * 30, ChronoUnit.MINUTES);
                         double hourOfDay = (ts.getEpochSecond() / 3600.0) % 24;
                         double dailyPattern = Math.sin(2 * Math.PI * (hourOfDay - 6) / 24) * 0.3 + 0.7;
                         double value = range[0] + Math.random() * (range[1] - range[0]) * dailyPattern;
                         value = Math.round(value * 10.0) / 10.0;
-
-            Measure m2 = new Measure();
-            m2.setId(new MeasureId(now.minusHours(2), UUID.randomUUID()));
-            m2.setValue(8.0f); m2.setUnit("ug/m3"); m2.setSensor(s1);
-
-            Measure m3 = new Measure();
-            m3.setId(new MeasureId(now.minusHours(24).plusMinutes(10), UUID.randomUUID()));
-            m3.setValue(6.0f); m3.setUnit("ug/m3"); m3.setSensor(s1);
-
-            Measure m4 = new Measure();
-            m4.setId(new MeasureId(now.minusHours(1), UUID.randomUUID()));
-            m4.setValue(70.0f); m4.setUnit("dB"); m4.setSensor(s2);
-
-            Measure m5 = new Measure();
-            m5.setId(new MeasureId(now.minusHours(25), UUID.randomUUID()));
-            m5.setValue(65.0f); m5.setUnit("dB"); m5.setSensor(s2);
-
-            Measure m6 = new Measure();
-            m6.setId(new MeasureId(now.minusHours(1), UUID.randomUUID()));
-            m6.setValue(12.0f); m6.setUnit("ug/m3"); m6.setSensor(s3);
-
-            measureRepository.saveAll(List.of(m1,m2,m3,m4,m5,m6));
                         ingestService.ingestMeasure(new IngestMeasureJson(
                                 sensorId,
                                 types[t],
