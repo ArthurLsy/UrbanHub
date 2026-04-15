@@ -16,15 +16,21 @@ public class TrendDto {
     public TrendDto() {
     }
 
-    public TrendDto(String sensorId, String zoneId, OffsetDateTime timestamp, Float value, Float previousValue, Float changeAbsolute, Float changePercent, String comparedTo) {
+    public TrendDto(
+            String sensorId,
+            String zoneId,
+            OffsetDateTime timestamp,
+            Float value,
+            Float previousValue,
+            TrendDelta delta) {
         this.sensorId = sensorId;
         this.zoneId = zoneId;
         this.timestamp = timestamp;
         this.value = value;
         this.previousValue = previousValue;
-        this.changeAbsolute = changeAbsolute;
-        this.changePercent = changePercent;
-        this.comparedTo = comparedTo;
+        this.changeAbsolute = delta.changeAbsolute();
+        this.changePercent = delta.changePercent();
+        this.comparedTo = delta.comparedTo();
     }
 
     // getters and setters

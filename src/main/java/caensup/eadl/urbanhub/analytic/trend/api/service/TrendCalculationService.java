@@ -1,5 +1,6 @@
 package caensup.eadl.urbanhub.analytic.trend.api.service;
 
+import caensup.eadl.urbanhub.analytic.trend.api.dto.TrendDelta;
 import caensup.eadl.urbanhub.analytic.trend.api.dto.TrendDto;
 import caensup.eadl.urbanhub.entity.Measure;
 import caensup.eadl.urbanhub.repository.MeasureRepository;
@@ -174,6 +175,6 @@ public class TrendCalculationService {
         String zoneId = latest.getSensor() != null && latest.getSensor().getPrimaryZone() != null ? latest.getSensor().getPrimaryZone().getZoneId() : null;
         String sensorId = latest.getSensor() != null ? latest.getSensor().getSensorId() : null;
 
-        return new TrendDto(sensorId, zoneId, latest.getId().getTimestamp(), v, pv, abs, pct, comparedTo);
+        return new TrendDto(sensorId, zoneId, latest.getId().getTimestamp(), v, pv, new TrendDelta(abs, pct, comparedTo));
     }
 }

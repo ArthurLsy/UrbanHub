@@ -25,6 +25,8 @@ import java.util.UUID;
 @Configuration
 public class DataSeeder {
 
+    private static final String POLUTION_UNIT = "μg/m3";
+
     // 60 diverse locations from caen-locations.json spread across Caen
     private static final double[][] CAEN_LOCATIONS = {
             { 49.16212, -0.36901 },
@@ -138,13 +140,13 @@ public class DataSeeder {
             OffsetDateTime now = OffsetDateTime.now();
             Measure m1 = new Measure();
             m1.setId(new MeasureId(now.minusHours(1), UUID.randomUUID()));
-            m1.setValue(10.0f); m1.setUnit("ug/m3"); m1.setSensor(s1);
+            m1.setValue(10.0f); m1.setUnit(POLUTION_UNIT); m1.setSensor(s1);
             Measure m2 = new Measure();
             m2.setId(new MeasureId(now.minusHours(2), UUID.randomUUID()));
-            m2.setValue(8.0f); m2.setUnit("ug/m3"); m2.setSensor(s1);
+            m2.setValue(8.0f); m2.setUnit(POLUTION_UNIT); m2.setSensor(s1);
             Measure m3 = new Measure();
             m3.setId(new MeasureId(now.minusHours(24).plusMinutes(10), UUID.randomUUID()));
-            m3.setValue(6.0f); m3.setUnit("ug/m3"); m3.setSensor(s1);
+            m3.setValue(6.0f); m3.setUnit(POLUTION_UNIT); m3.setSensor(s1);
             Measure m4 = new Measure();
             m4.setId(new MeasureId(now.minusHours(1), UUID.randomUUID()));
             m4.setValue(70.0f); m4.setUnit("dB"); m4.setSensor(s2);
@@ -153,7 +155,7 @@ public class DataSeeder {
             m5.setValue(65.0f); m5.setUnit("dB"); m5.setSensor(s2);
             Measure m6 = new Measure();
             m6.setId(new MeasureId(now.minusHours(1), UUID.randomUUID()));
-            m6.setValue(12.0f); m6.setUnit("ug/m3"); m6.setSensor(s3);
+            m6.setValue(12.0f); m6.setUnit(POLUTION_UNIT); m6.setSensor(s3);
             measureRepository.saveAll(List.of(m1, m2, m3, m4, m5, m6));
 
             // 48h of data, 1 measurement every 30 min per synthetic sensor id
