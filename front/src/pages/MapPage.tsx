@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMap, Circle, Polygon, Tooltip } from 'react-leaflet'
 import L from 'leaflet'
 import { useSearchParams } from 'react-router-dom'
@@ -321,7 +321,7 @@ const MapPage = () => {
             }
 
             return (
-              <>
+              <React.Fragment key={zone.zoneId}>
                 {count === 1 ? (
                   <Circle
                     center={[clat, clon]}
@@ -370,7 +370,7 @@ const MapPage = () => {
                     </Tooltip>
                   </Polygon>
                 )}
-              </>
+              </React.Fragment>
             )
           })}
 

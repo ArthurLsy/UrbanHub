@@ -39,7 +39,7 @@ const ComparisonPage = () => {
 
   const [selectedSensors, setSelectedSensors] = useState<string[]>(initialSelected)
   const [userSelectedType, setUserSelectedType] = useState<string>('all')
-  const [period, setPeriod] = useState<Period>('1h')
+  const [period, setPeriod] = useState<Period>('24h')
 
   const sensors = useMemo<Sensor[]>(() => {
     if (!data) return []

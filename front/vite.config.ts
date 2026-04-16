@@ -18,6 +18,7 @@ export default defineConfig(({ mode }) => {
       allowedHosts: ['urban-hub.sts-sio-caen.info'],
       proxy: {
         '/api': apiUrl,
+        '/analytic': apiUrl,
       },
     },
   }

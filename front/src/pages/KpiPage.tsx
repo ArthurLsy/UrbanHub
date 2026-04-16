@@ -9,6 +9,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useSensors } from '@/queries/sensorQueries'
 import { useZones } from '@/queries/zoneQueries'
 import { useSensorTrendLatest, useSensorTrend24h, useSensorTrendPeriod, useZoneTrendPeriod } from '@/queries/trendQueries'
+import { useKpiByZone, useKpiBySensor, useKpiByType } from '@/queries/kpiQueries'
+import type { KpiDto } from '@/services/kpiService'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 
 type Period = '1h' | '24h' | '1week'
@@ -47,16 +49,95 @@ const GRANULARITIES: { value: Granularity; label: string }[] = [
   { value: '1week', label: '1 semaine' },
 ]
 
-// mock bar chart data
-const MOCK_BARS = [
-  { label: 'Lun', air: 42, noise: 55, traffic: 38 },
-  { label: 'Mar', air: 38, noise: 51, traffic: 42 },
-  { label: 'Mer', air: 45, noise: 58, traffic: 35 },
-  { label: 'Jeu', air: 51, noise: 62, traffic: 48 },
-  { label: 'Ven', air: 48, noise: 60, traffic: 55 },
-  { label: 'Sam', air: 35, noise: 48, traffic: 40 },
-  { label: 'Dim', air: 30, noise: 44, traffic: 28 },
-]
+// Map API measure types to chart-friendly keys and colors
+const TYPE_CHART_META: Record<string, { key: string; label: string; color: string }> = {
+  AIR:     { key: 'air',    label: 'Air (μg/m³)',   color: '#f59e0b' },
+  NOISE:   { key: 'noise',  label: 'Bruit (dB)',      color: '#ef4444' },
+  TRAFFIC: { key: 'traffic', label: 'Trafic (km/h)',  color: '#00b07d' },
+  WEATHER: { key: 'weather', label: 'Météo (°C)',     color: '#3b82f6' },
+}
+
+function formatBucketLabel(iso: string, granularity: Granularity): string {
+  const d = new Date(iso)
+  if (granularity === '1h') {
+    return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', hour12: false })
+  }
+  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })
+}
+
+function kpiToChartData(kpis: KpiDto[], granularity: Granularity): Record<string, number | string>[] {
+  return kpis.map(kpi => ({
+    label: formatBucketLabel(kpi.bucket, granularity),
+    value: kpi.average,
+    unite: kpi.unite,
+  }))
+}
+
+function buildZoneChartData(
+  data: Record<string, KpiDto[]>,
+  granularity: Granularity
+): Record<string, number | string>[] {
+  // Collect all unique bucket labels
+  const bucketLabels = new Set<string>()
+  Object.values(data).forEach(kpis => kpis.forEach(k => bucketLabels.add(formatBucketLabel(k.bucket, granularity))))
+
+  return Array.from(bucketLabels).sort().map(label => {
+    const row: Record<string, number | string> = { label }
+    Object.entries(data).forEach(([type, kpis]) => {
+      const meta = TYPE_CHART_META[type.toUpperCase()]
+      if (!meta) return
+      const kpi = kpis.find(k => formatBucketLabel(k.bucket, granularity) === label)
+      if (kpi) row[meta.key] = kpi.average
+    })
+    return row
+  })
+}
+
+function ChartBars({ data, unit }: { data: Record<string, number | string>[]; unit?: string }) {
+  const types = Object.keys(TYPE_CHART_META).filter(t =>
+    data.some(d => d[TYPE_CHART_META[t].key] !== undefined)
+  )
+  if (types.length === 0) {
+    return (
+      <ResponsiveContainer width="100%" height={280}>
+        <BarChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+          <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#94a3b8', fontFamily: 'var(--font-mono)' }}
+            axisLine={false} tickLine={false} />
+          <YAxis tick={{ fontSize: 10, fill: '#94a3b8', fontFamily: 'var(--font-mono)' }}
+            axisLine={false} tickLine={false} />
+          <Tooltip
+            contentStyle={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, fontSize: 12, fontFamily: 'var(--font-mono)' }}
+            formatter={(val) => [`${Number(val).toFixed(1)}${unit ? ' ' + unit : ''}`, 'Moyenne']}
+          />
+          <Bar dataKey="value" fill="#00e5a0" radius={[4, 4, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    )
+  }
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <BarChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+        <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#94a3b8', fontFamily: 'var(--font-mono)' }}
+          axisLine={false} tickLine={false} />
+        <YAxis tick={{ fontSize: 10, fill: '#94a3b8', fontFamily: 'var(--font-mono)' }}
+          axisLine={false} tickLine={false} />
+        <Tooltip
+          contentStyle={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, fontSize: 12, fontFamily: 'var(--font-mono)' }}
+          formatter={(value, key) => [`${Number(value).toFixed(1)}${unit ? ' ' + unit : ''}`, String(key)]}
+        />
+        <Legend wrapperStyle={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: '#94a3b8' }} />
+        {types.map(t => {
+          const meta = TYPE_CHART_META[t]
+          return (
+            <Bar key={t} dataKey={meta.key} name={meta.label} fill={meta.color} radius={[4, 4, 0, 0]} />
+          )
+        })}
+      </BarChart>
+    </ResponsiveContainer>
+  )
+}
 
 function MoyenneModule() {
   const { data: sensors } = useSensors()
@@ -65,8 +146,35 @@ function MoyenneModule() {
   const [selector, setSelector] = useState<Selector>('zone')
   const [selectedId, setSelectedId] = useState<string>('')
   const [granularity, setGranularity] = useState<Granularity>('1week')
-  const [dateFrom, setDateFrom] = useState<string>('2026-04-01')
-  const [dateTo, setDateTo] = useState<string>('2026-04-15')
+  const [dateFrom, setDateFrom] = useState<string>(() => {
+    const d = new Date(); d.setDate(d.getDate() - 7)
+    return d.toISOString().split('T')[0]
+  })
+  const [dateTo, setDateTo] = useState<string>(() => new Date().toISOString().split('T')[0])
+
+  // Auto-select first option when data loads
+  useEffect(() => {
+    if (!selectedId) {
+      if (selector === 'zone' && zones && zones.length > 0) setSelectedId(zones[0].zoneId)
+      else if (selector === 'sensorType' && sensors && sensors.length > 0) {
+        const types = Array.from(new Set(sensors.map((s: { sensorTypeId: string }) => s.sensorTypeId)))
+        if (types.length > 0) setSelectedId(types[0])
+      } else if (selector === 'sensor' && sensors && sensors.length > 0) {
+        if (sensors[0]) setSelectedId(sensors[0].sensorId)
+      }
+    }
+  }, [selector, zones, sensors, selectedId])
+
+  // Build ISO datetime strings for API
+  const startIso = dateFrom ? `${dateFrom}T00:00:00` : ''
+  const endIso = dateTo ? `${dateTo}T23:59:59` : ''
+
+  // API calls per selector type
+  const { data: zoneData, isLoading: isoZoneLoading } = useKpiByZone(selectedId, startIso, endIso, granularity)
+  const { data: sensorData, isLoading: isSensorLoading } = useKpiBySensor(selectedId, startIso, endIso, granularity)
+  const { data: typeData, isLoading: isTypeLoading } = useKpiByType(selectedId, startIso, endIso, granularity)
+
+  const isLoadingData = selector === 'zone' ? isoZoneLoading : selector === 'sensorType' ? isTypeLoading : isSensorLoading
 
   const selectorOptions = selector === 'zone'
     ? (zones ?? []).map(z => ({ value: z.zoneId, label: z.zoneId }))
@@ -75,6 +183,17 @@ function MoyenneModule() {
       : (sensors ?? []).map(s => ({ value: s.sensorId, label: s.sensorId }))
 
   const selectedLabel = selectorOptions.find(o => o.value === selectedId)?.label ?? ''
+
+  // Build chart data based on selector
+  const chartData = useMemo(() => {
+    if (!selectedId) return null
+    if (selector === 'zone' && zoneData) return buildZoneChartData(zoneData, granularity)
+    if (selector === 'sensor' && sensorData) return kpiToChartData(sensorData, granularity)
+    if (selector === 'sensorType' && typeData) return kpiToChartData(typeData, granularity)
+    return null
+  }, [selector, selectedId, zoneData, sensorData, typeData, granularity])
+
+  const unitLabel = selector === 'zone' ? '' : (typeData?.[0]?.unite ?? sensorData?.[0]?.unite ?? '')
 
   return (
     <Card className="p-6">
@@ -164,34 +283,29 @@ function MoyenneModule() {
 
         {/* Bar chart */}
         <div className="w-full rounded-xl border border-[#e2e8f0] bg-white p-4">
-          {selectedId ? (
-            <>
-              <p className="text-[11px] text-[#94a3b8] tracking-wider uppercase mb-3" style={{ fontFamily: 'var(--font-mono)' }}>
-                Moyenne — {selectedLabel} — {granularity === '1h' ? 'par heure' : granularity === '24h' ? 'par jour' : 'par semaine'}
-              </p>
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={MOCK_BARS} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#94a3b8', fontFamily: 'var(--font-mono)' }}
-                    axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: '#94a3b8', fontFamily: 'var(--font-mono)' }}
-                    axisLine={false} tickLine={false} />
-                  <Tooltip
-                    contentStyle={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, fontSize: 12, fontFamily: 'var(--font-mono)' }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: '#94a3b8' }} />
-                  <Bar dataKey="air" fill="#f59e0b" name="Air (μg/m³)" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="noise" fill="#ef4444" name="Bruit (dB)" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="traffic" fill="#00b07d" name="Trafic (km/h)" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </>
-          ) : (
+          {!selectedId ? (
             <div className="flex items-center justify-center h-[280px]">
               <p className="text-xs text-[#94a3b8] italic tracking-wider" style={{ fontFamily: 'var(--font-mono)' }}>
                 Sélectionnez une {selector === 'zone' ? 'zone' : selector === 'sensorType' ? 'type de capteur' : 'capteur'} pour voir la moyenne
               </p>
             </div>
+          ) : isLoadingData ? (
+            <div className="flex items-center justify-center h-[280px]">
+              <Skeleton className="h-40 w-full rounded-xl" />
+            </div>
+          ) : !chartData || chartData.length === 0 ? (
+            <div className="flex items-center justify-center h-[280px]">
+               <p className="text-xs text-[#94a3b8] italic tracking-wider" style={{ fontFamily: 'var(--font-mono)' }}>
+                 Données insuffisantes pour cette période.
+               </p>
+            </div>
+          ) : (
+            <>
+              <p className="text-[11px] text-[#94a3b8] tracking-wider uppercase mb-3" style={{ fontFamily: 'var(--font-mono)' }}>
+                Moyenne — {selectedLabel} — {granularity === '1h' ? 'par heure' : granularity === '24h' ? 'par jour' : 'par semaine'}
+              </p>
+              <ChartBars data={chartData} unit={unitLabel} />
+            </>
           )}
         </div>
       </CardContent>
@@ -238,8 +352,12 @@ function TrendModule({ title, entity }: { title: string; entity: 'sensor' | 'zon
 
   // Determine unit label from sensor type
   const selectedSensor = (sensors ?? []).find(s => s.sensorId === selected)
+  const selectedZone = (zones ?? []).find(z => z.zoneId === selected)
+  const firstSensorInZone = selectedZone?.sensors?.[0]
+  
   const TYPE_UNIT: Record<string, string> = { AIR: 'μg/m³', NOISE: 'dB', TRAFFIC: 'km/h', WEATHER: '°C' }
-  const unitTypeLabel = selectedSensor?.sensorTypeId ? (TYPE_UNIT[selectedSensor.sensorTypeId] ?? '') : ''
+  const sensorTypeToUse = selectedSensor?.sensorTypeId || firstSensorInZone?.sensorTypeId
+  const unitTypeLabel = sensorTypeToUse ? (TYPE_UNIT[sensorTypeToUse] ?? '') : ''
 
   const displayValue = trend
     ? (trend.changePercent >= 0 ? '+' : '') + trend.changePercent.toFixed(1)
@@ -271,7 +389,7 @@ function TrendModule({ title, entity }: { title: string; entity: 'sensor' | 'zon
               %
             </ToggleGroupItem>
             <ToggleGroupItem value="unit" variant="outline" className="h-6 px-2 text-[10px]">
-              {unitTypeLabel || (trend ? (trend.changeAbsolute >= 0 ? '+' : '') + trend.changeAbsolute.toFixed(1) : '')}
+              {unitTypeLabel || 'Valeur'}
             </ToggleGroupItem>
           </ToggleGroup>
         </div>

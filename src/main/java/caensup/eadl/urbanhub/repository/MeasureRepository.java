@@ -86,7 +86,8 @@ public interface MeasureRepository extends JpaRepository<Measure, UUID> {
             FROM measure m
             JOIN sensor s ON m.sensor_uuid = s.uuid
             JOIN sensor_type st ON s.sensor_type = st.uuid
-            JOIN zone z ON s.zone_id = z.uuid
+            JOIN zone_sensor zs ON s.uuid = zs.sensor_uuid
+            JOIN zone z ON zs.zone_uuid = z.uuid
             WHERE st.sensor_type_id = :sensorTypeId
             AND z.zone_id = :zoneId
             AND m.timestamp >= :startTime
@@ -126,24 +127,23 @@ public interface MeasureRepository extends JpaRepository<Measure, UUID> {
             @Param("endTime") Instant endTime);
 
     @EntityGraph(attributePaths = {"sensor", "sensor.zones", "sensor.sensorType"})
-    @EntityGraph(attributePaths = { "sensor", "sensor.zones", "sensor.sensorType" })
     Optional<Measure> findTopBySensor_SensorIdOrderById_TimestampDesc(String sensorId);
 
     /**
      * Returns the N most recent measures for a sensor ordered descending by timestamp.
      */
-    @EntityGraph(attributePaths = {"sensor", "sensor.zoness", "sensor.sensorType"})
+    @EntityGraph(attributePaths = {"sensor", "sensor.zones", "sensor.sensorType"})
     List<Measure> findTop2BySensor_SensorIdOrderById_TimestampDesc(String sensorId);
 
     /**
      * Returns the latest measure with timestamp <= given timestamp.
      */
-    @EntityGraph(attributePaths = {"sensor", "sensor.zoness", "sensor.sensorType"})
+    @EntityGraph(attributePaths = {"sensor", "sensor.zones", "sensor.sensorType"})
     Optional<Measure> findTopBySensor_SensorIdAndId_TimestampLessThanEqualOrderById_TimestampDesc(String sensorId, OffsetDateTime ts);
 
     /**
      * Returns the earliest measure with timestamp >= given timestamp.
      */
-    @EntityGraph(attributePaths = {"sensor", "sensor.zoness", "sensor.sensorType"})
+    @EntityGraph(attributePaths = {"sensor", "sensor.zones", "sensor.sensorType"})
     Optional<Measure> findTopBySensor_SensorIdAndId_TimestampGreaterThanEqualOrderById_TimestampAsc(String sensorId, OffsetDateTime ts);
 }
