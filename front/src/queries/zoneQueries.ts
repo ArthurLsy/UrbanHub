@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { fetchZones, createZone, updateZone, deleteZone } from '../services/zoneService'
+import { fetchZones, fetchZonesCount, fetchZoneById, createZone, updateZone, deleteZone } from '../services/zoneService'
 import type { CreateZonePayload, UpdateZonePayload } from '../types'
 
 export const useZones = () => {
@@ -7,6 +7,21 @@ export const useZones = () => {
     queryKey: ['zones'],
     queryFn: fetchZones,
     retry: false,
+  })
+}
+
+export const useZonesCount = () => {
+  return useQuery({
+    queryKey: ['zones', 'count'],
+    queryFn: fetchZonesCount,
+  })
+}
+
+export const useZoneById = (zoneId: string) => {
+  return useQuery({
+    queryKey: ['zones', zoneId],
+    queryFn: () => fetchZoneById(zoneId),
+    enabled: !!zoneId,
   })
 }
 

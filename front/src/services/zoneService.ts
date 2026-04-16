@@ -6,6 +6,16 @@ export const fetchZones = async (): Promise<Zone[]> => {
   return data
 }
 
+export const fetchZonesCount = async (): Promise<number> => {
+  const { data } = await axios.get<number>('/api/zones/count')
+  return data
+}
+
+export const fetchZoneById = async (zoneId: string): Promise<Zone> => {
+  const { data } = await axios.get<Zone>('/api/zones/by-id', { params: { zone_id: zoneId } })
+  return data
+}
+
 export const createZone = async (payload: CreateZonePayload): Promise<Zone> => {
   const { data } = await axios.post<Zone>('/api/zones', payload)
   return data
