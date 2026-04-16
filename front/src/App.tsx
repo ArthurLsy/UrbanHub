@@ -22,7 +22,7 @@ function App() {
               <Route path="/zones" element={<ZonesPage />} />
               <Route path="/capteurs" element={<SensorsPage />} />
               <Route path="/capteurs/:id" element={<SensorDetailPage />} />
-              <Route path="/comparaison" element={<ComparisonPage />} />
+              <Route path="/comparer" element={<ComparisonPage />} />
               <Route path="/carte" element={<MapPage />} />
               <Route path="/types-capteur" element={<SensorTypesPage />} />
               <Route path="/kpis" element={<KpiPage />} />

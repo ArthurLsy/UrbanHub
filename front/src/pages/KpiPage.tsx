@@ -1,18 +1,39 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { Combobox } from '@/components/ui/combobox'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useSensors } from '@/queries/sensorQueries'
 import { useZones } from '@/queries/zoneQueries'
+import { useSensorTrendLatest, useSensorTrend24h, useSensorTrendPeriod, useZoneTrendPeriod } from '@/queries/trendQueries'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 
 type Period = '1h' | '24h' | '1week'
 type Unit = 'percent' | 'unit'
 type Selector = 'zone' | 'sensorType' | 'sensor'
 type Granularity = '1h' | '24h' | '1week'
+
+function isoRange(period: Period): { start: string; end: string } {
+  const end = new Date()
+  const start = new Date()
+  if (period === '1h') start.setHours(start.getHours() - 1)
+  else if (period === '24h') start.setDate(start.getDate() - 1)
+  else start.setDate(start.getDate() - 7)
+  return { start: start.toISOString(), end: end.toISOString() }
+}
+
+// Zones don't have a dedicated 1h endpoint, always use period with a wider window for 1h
+function zoneRange(period: Period): { start: string; end: string } {
+  const end = new Date()
+  const start = new Date()
+  if (period === '1h') start.setDate(start.getDate() - 2)     // 48h → enough data from DataSeeder
+  else if (period === '24h') start.setDate(start.getDate() - 1)
+  else start.setDate(start.getDate() - 7)
+  return { start: start.toISOString(), end: end.toISOString() }
+}
 
 const PERIODS: { value: Period; label: string }[] = [
   { value: '1h', label: '1 heure' },
@@ -178,18 +199,20 @@ function MoyenneModule() {
   )
 }
 
-// mock value per entity (signed)
-const MOCK_VALUES: Record<string, { percent: string; unit: string; unitLabel: string; positive: boolean }> = {
-  sensor: { percent: '+74', unit: '+68', unitLabel: 'μg/m³', positive: true },
-  zone: { percent: '-12', unit: '-8', unitLabel: 'dB', positive: false },
-}
-
 function TrendModule({ title, entity }: { title: string; entity: 'sensor' | 'zone' }) {
   const { data: sensors } = useSensors()
   const { data: zones } = useZones()
   const [selected, setSelected] = useState<string>('')
   const [period, setPeriod] = useState<Period>('24h')
   const [unit, setUnit] = useState<Unit>('percent')
+
+  const { start, end } = useMemo(() => isoRange(period), [period])
+  const { start: zoneStart, end: zoneEnd } = useMemo(() => zoneRange(period), [period])
+
+  const { data: trendLatest } = useSensorTrendLatest(selected)
+  const { data: trend24h } = useSensorTrend24h(selected)
+  const { data: trendPeriod } = useSensorTrendPeriod(selected, start, end)
+  const { data: zoneTrends } = useZoneTrendPeriod(selected, zoneStart, zoneEnd)
 
   useEffect(() => {
     if (entity === 'sensor' && sensors && sensors.length > 0 && !selected) {
@@ -204,9 +227,32 @@ function TrendModule({ title, entity }: { title: string; entity: 'sensor' | 'zon
     ? (sensors ?? []).map(s => ({ value: s.sensorId, label: s.sensorId }))
     : (zones ?? []).map(z => ({ value: z.zoneId, label: z.zoneId }))
 
-  const mock = MOCK_VALUES[entity]
-  const displayValue = unit === 'percent' ? mock.percent : mock.unit
-  const valueColor = mock.positive ? 'text-[#00b07d]' : 'text-red-500'
+  // Zones always use period endpoint; sensors use latest/24h/period depending on period
+  const trend = entity === 'zone'
+    ? (zoneTrends && zoneTrends.length > 0 ? zoneTrends[0] : null)
+    : period === '1h'
+      ? trendLatest
+      : period === '24h'
+        ? trend24h
+        : trendPeriod
+
+  // Determine unit label from sensor type
+  const selectedSensor = (sensors ?? []).find(s => s.sensorId === selected)
+  const TYPE_UNIT: Record<string, string> = { AIR: 'μg/m³', NOISE: 'dB', TRAFFIC: 'km/h', WEATHER: '°C' }
+  const unitTypeLabel = selectedSensor?.sensorTypeId ? (TYPE_UNIT[selectedSensor.sensorTypeId] ?? '') : ''
+
+  const displayValue = trend
+    ? (trend.changePercent >= 0 ? '+' : '') + trend.changePercent.toFixed(1)
+    : null
+  const unitLabel = trend
+    ? unit === 'percent'
+      ? '%'
+      : unitTypeLabel || ((trend.changeAbsolute >= 0 ? '+' : '') + trend.changeAbsolute.toFixed(1))
+    : ''
+  const valueColor = trend
+    ? trend.changePercent >= 0 ? 'text-[#00b07d]' : 'text-red-500'
+    : 'text-[#94a3b8]'
+  const isLoading = !trend && selected !== ''
 
   return (
     <Card className="p-6">
@@ -225,7 +271,7 @@ function TrendModule({ title, entity }: { title: string; entity: 'sensor' | 'zon
               %
             </ToggleGroupItem>
             <ToggleGroupItem value="unit" variant="outline" className="h-6 px-2 text-[10px]">
-              {mock.unitLabel}
+              {unitTypeLabel || (trend ? (trend.changeAbsolute >= 0 ? '+' : '') + trend.changeAbsolute.toFixed(1) : '')}
             </ToggleGroupItem>
           </ToggleGroup>
         </div>
@@ -262,20 +308,25 @@ function TrendModule({ title, entity }: { title: string; entity: 'sensor' | 'zon
 
         {/* Big value square */}
         <div className="w-full rounded-xl border-[#e2e8f0] bg-white flex flex-row items-center justify-center py-8 px-4 mt-2">
-          <p className={`text-5xl font-bold tracking-wider leading-none ${valueColor}`} style={{ fontFamily: 'var(--font-display)' }}>
-            {displayValue}
-          </p>
-          <p className="text-[14px] text-[#94a3b8] ml-2 mt-1" style={{ fontFamily: 'var(--font-mono)' }}>
-            {unit === 'percent' ? '%' : mock.unitLabel}
-          </p>
+          {isLoading ? (
+            <Skeleton className="h-12 w-32" />
+          ) : displayValue !== null ? (
+            <>
+              <p className={`text-5xl font-bold tracking-wider leading-none ${valueColor}`} style={{ fontFamily: 'var(--font-display)' }}>
+                {displayValue}
+              </p>
+              <p className="text-[14px] text-[#94a3b8] ml-2 mt-1" style={{ fontFamily: 'var(--font-mono)' }}>
+                {unitLabel}
+              </p>
+            </>
+          ) : (
+            <p className="text-xs text-[#94a3b8] italic tracking-wider" style={{ fontFamily: 'var(--font-mono)' }}>
+              Pas assez de données
+            </p>
+          )}
         </div>
 
-        {/* Info line */}
-        {selected && (
-          <p className="text-[10px] text-[#94a3b8] tracking-wider" style={{ fontFamily: 'var(--font-mono)' }}>
-            {selected} — {period}
-          </p>
-        )}
+
       </CardContent>
     </Card>
   )
