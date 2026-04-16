@@ -12,10 +12,14 @@ import caensup.eadl.urbanhub.repository.ZoneRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 
 @Service
 public class ZoneService {
+
+    private static final Duration SENSOR_ALIVE_WINDOW = Duration.ofHours(1);
 
     private final ZoneRepository zoneRepository;
     private final SensorRepository sensorRepository;
@@ -93,10 +97,17 @@ public class ZoneService {
     }
 
     private ZoneDto toDto(Zone zone) {
+        Instant cutoff = Instant.now().minus(SENSOR_ALIVE_WINDOW);
         List<SensorDto> sensorDtos = zone.getSensors() == null ? List.of()
                 : zone.getSensors().stream()
-                        .map(s -> new SensorDto(s.getUuid(), s.getSensorId(), s.getSensorType().getSensorTypeId(),
-                                s.getLatitude(), s.getLongitude(), s.getStatus(), null))
+                        .map(s -> new SensorDto(
+                                s.getUuid(),
+                                s.getSensorId(),
+                                s.getSensorType().getSensorTypeId(),
+                                s.getLatitude(),
+                                s.getLongitude(),
+                                s.getLastUpdate() != null && !s.getLastUpdate().isBefore(cutoff),
+                                null))
                         .toList();
         return new ZoneDto(zone.getUuid(), zone.getZoneId(), sensorDtos);
     }

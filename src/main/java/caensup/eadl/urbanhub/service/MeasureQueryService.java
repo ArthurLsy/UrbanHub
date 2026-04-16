@@ -88,7 +88,6 @@ public class MeasureQueryService {
                 sensor.getSensorId(),
                 sensor.getLatitude(),
                 sensor.getLongitude(),
-                sensor.getStatus(),
                 zoneIds,
                 sensor.getSensorType().getSensorTypeId()
         );

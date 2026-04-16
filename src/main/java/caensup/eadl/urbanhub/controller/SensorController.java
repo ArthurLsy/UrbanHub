@@ -37,4 +37,23 @@ public class SensorController {
     public SensorDto getById(@RequestParam(name = "sensor_id") String sensorId) {
         return sensorService.getById(sensorId);
     }
+
+    @GetMapping("/status")
+    public List<SensorDto> getByStatus(@RequestParam(name = "alive", defaultValue = "true") boolean alive) {
+        return sensorService.getByStatus(alive);
+    }
+
+    @GetMapping("/status/count")
+    public long getByStatusCount(@RequestParam(name = "alive", defaultValue = "true") boolean alive) {
+        return sensorService.getByStatusCount(alive);
+    }
+
+    @GetMapping("/status/ratio")
+    public double getByStatusRatio(@RequestParam(name = "alive", defaultValue = "true") boolean alive) {
+        long total = sensorService.getCount();
+        if (total == 0) {
+            return 0.0;
+        }
+        return sensorService.getByStatusCount(alive) / (double) total;
+    }
 }

@@ -8,7 +8,9 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import java.util.HashSet;
 import java.util.UUID;
+
 import java.util.Set;
+import java.time.Instant;
 
 /**
  * Capteur physique identifié par un UUID interne et un identifiant fonctionnel ({@code sensor_id}).
@@ -37,11 +39,15 @@ public class Sensor {
     @Column(name = "longitude", nullable = false)
     private Double longitude;
 
-    @Column(name = "status", nullable = false)
-    private Boolean status;
-
     @ManyToMany(mappedBy = "sensors")
     private Set<Zone> zones = new HashSet<>();
+
+    @Column(name = "last_update", nullable = false)
+    private Instant lastUpdate = Instant.now();
+
+    @ManyToOne
+    @JoinColumn(name = "zone_id")
+    private Zone zone;
 
     @ManyToOne
     @JoinColumn(name = "sensor_type", nullable = false)
@@ -55,5 +61,12 @@ public class Sensor {
         if (zones == null || zones.isEmpty()) return null;
         // renvoie une zone arbitraire (première) — adapte selon vos règles métier
         return zones.iterator().next();
+    }
+
+    @PrePersist
+    public void prePersist() {
+        if (lastUpdate == null) {
+            lastUpdate = Instant.now();
+        }
     }
 }

@@ -15,7 +15,6 @@ public record MeasureDto(
         String sensorId,
         Double latitude,
         Double longitude,
-        Boolean sensorStatus,
         String zoneId,
         String sensorTypeId
 ) {

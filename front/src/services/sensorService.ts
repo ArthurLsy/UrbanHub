@@ -1,24 +1,15 @@
 import axios from 'axios'
-
-export type SensorDto = {
-  uuid: string
-  sensorId: string
-  sensorTypeId: string
-  latitude: number
-  longitude: number
-  status: boolean
-  zoneId: string | null
-}
+import type { Sensor } from '../types'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
-export const fetchSensors = async (): Promise<SensorDto[]> => {
-  const { data } = await axios.get<SensorDto[]>(`${API_URL}/api/sensors`)
+export const fetchSensors = async (): Promise<Sensor[]> => {
+  const { data } = await axios.get<Sensor[]>(`${API_URL}/api/sensors`)
   return data
 }
 
-export const fetchSensorsByType = async (type: string): Promise<SensorDto[]> => {
-  const { data } = await axios.get<SensorDto[]>(`${API_URL}/api/sensors`, {
+export const fetchSensorsByType = async (type: string): Promise<Sensor[]> => {
+  const { data } = await axios.get<Sensor[]>(`${API_URL}/api/sensors`, {
     params: { type },
   })
   return data
@@ -26,5 +17,12 @@ export const fetchSensorsByType = async (type: string): Promise<SensorDto[]> => 
 
 export const fetchSensorCount = async (): Promise<number> => {
   const { data } = await axios.get<number>(`${API_URL}/api/sensors/count`)
+  return data
+}
+
+export const fetchSensorStatusCount = async (alive: boolean): Promise<number> => {
+  const { data } = await axios.get<number>(`${API_URL}/api/sensors/status/count`, {
+    params: { alive },
+  })
   return data
 }

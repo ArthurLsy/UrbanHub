@@ -1,6 +1,7 @@
 package caensup.eadl.urbanhub.repository;
 
 import caensup.eadl.urbanhub.entity.Sensor;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -11,10 +12,11 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface SensorRepository extends JpaRepository<Sensor, UUID> {
 
-    /**
-     * Finds a sensor by its business identifier (sensor_id in the JSON payload).
-     */
     Optional<Sensor> findBySensorId(String sensorId);
+
+    List<Sensor> findByLastUpdateGreaterThanEqual(Instant cutoff);
+
+    List<Sensor> findByLastUpdateLessThan(Instant cutoff);
 
     @EntityGraph(attributePaths = { "sensorType", "zones" })
     List<Sensor> findAll();

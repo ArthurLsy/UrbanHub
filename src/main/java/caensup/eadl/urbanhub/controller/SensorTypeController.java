@@ -33,4 +33,5 @@ public class SensorTypeController {
     public SensorTypeDto getById(@RequestParam(name = "sensor_type_id") String sensorTypeId) {
         return sensorTypeService.getById(sensorTypeId);
     }
+
 }

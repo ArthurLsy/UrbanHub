@@ -125,9 +125,9 @@ public class DataSeeder {
             zoneRepository.saveAll(List.of(z1, z2));
 
             // create sensors
-            Sensor s1 = new Sensor(); s1.setSensorId("sensor-centre-1"); s1.setLatitude(45.0); s1.setLongitude(3.0); s1.setStatus(true); s1.setZones(Set.of(z1)); s1.setSensorType(air);
-            Sensor s2 = new Sensor(); s2.setSensorId("sensor-centre-2"); s2.setLatitude(45.1); s2.setLongitude(3.1); s2.setStatus(true); s2.setZones(Set.of(z1)); s2.setSensorType(noise);
-            Sensor s3 = new Sensor(); s3.setSensorId("sensor-north-1"); s3.setLatitude(45.5); s3.setLongitude(3.5); s3.setStatus(true); s3.setZones(Set.of(z2)); s3.setSensorType(air);
+            Sensor s1 = new Sensor(); s1.setSensorId("sensor-centre-1"); s1.setLatitude(45.0); s1.setLongitude(3.0); s1.setZones(Set.of(z1)); s1.setSensorType(air);
+            Sensor s2 = new Sensor(); s2.setSensorId("sensor-centre-2"); s2.setLatitude(45.1); s2.setLongitude(3.1); s2.setZones(Set.of(z1)); s2.setSensorType(noise);
+            Sensor s3 = new Sensor(); s3.setSensorId("sensor-north-1"); s3.setLatitude(45.5); s3.setLongitude(3.5); s3.setZones(Set.of(z2)); s3.setSensorType(air);
             // 4 sensor types × 15 locations = 60 sensors
             String[] types = { "AIR", "NOISE", "TRAFFIC", "WEATHER" };
             String[] units = { UNIT_AIR, UNIT_NOISE, UNIT_TRAFFIC, UNIT_WEATHER };

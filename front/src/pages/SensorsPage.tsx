@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ArrowUpDown, ArrowUp, ArrowDown, X, Search } from 'lucide-react'
 import { useSensors } from '../queries/sensorQueries'
+import type { Sensor } from '../types'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
@@ -15,7 +16,7 @@ type SortKey = 'sensorId' | 'type' | 'status'
 type SortDir = 'asc' | 'desc'
 
 const SensorsPage = () => {
-  const { data: sensors, isLoading, isError, isFetching } = useSensors()
+  const { data, isLoading, isError, isFetching } = useSensors()
   const [searchParams, setSearchParams] = useSearchParams()
   const typeFilter = searchParams.get('type')
 
@@ -24,6 +25,8 @@ const SensorsPage = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(5)
   const [search, setSearch] = useState('')
+
+  const sensors = useMemo<Sensor[]>(() => data ?? [], [data])
 
   // Benchmark : temps de chargement frontend
   const fetchStartRef = useRef<number | null>(null)
