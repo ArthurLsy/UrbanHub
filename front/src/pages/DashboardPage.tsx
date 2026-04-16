@@ -108,6 +108,7 @@ const DashboardPage = () => {
       mostActiveSensor,
       mostActiveMeasureCount,
       typeStats,
+      recentMeasureCount: data.length
     }
   }, [data])
 
@@ -260,14 +261,14 @@ const DashboardPage = () => {
                   >
                     {stats.mostActiveSensor}
                   </Link>
-                  {' '}({stats.mostActiveMeasureCount} mesures)
+                  {' '}({stats.mostActiveMeasureCount} mesures récentes)
                 </p>
               )}
             </div>
           </CardContent>
         </Card>
 
-        {/* Types de capteur card */}
+        {/* Types de capteur card — full width on md, 3rd col on lg */}
         <Card className="p-8 sm:col-span-2 lg:col-span-3">
           <CardContent className="p-0">
             <div className="flex items-start gap-5">
@@ -314,48 +315,7 @@ const DashboardPage = () => {
             </div>
           </CardContent>
         </Card>
-
-        {/* Averages card */}
-        {stats.typeStats.length > 0 && (
-          <Card className="p-8 sm:col-span-2 lg:col-span-3">
-            <CardContent className="p-0">
-              <p className="text-[11px] text-[#94a3b8] tracking-[0.15em] uppercase mb-4" style={{ fontFamily: 'var(--font-mono)' }}>
-                Moyennes et dernières valeurs
-              </p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                {stats.typeStats.map(({ type, unit, avg, latest, lastTimestamp }) => {
-                  const fmt = (n: number) => n % 1 === 0 ? String(n) : n.toFixed(2)
-                  const fmtDate = (ts: string) => {
-                    const d = new Date(ts)
-                    if (isNaN(d.getTime())) return ts
-                    return d.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
-                  }
-                  return (
-                    <div key={type} className="rounded-xl border border-[#e2e8f0] p-4">
-                      <p className="text-[10px] text-[#94a3b8] tracking-[0.15em] uppercase mb-3" style={{ fontFamily: 'var(--font-mono)' }}>
-                        {type}
-                      </p>
-                      <div className="flex items-baseline gap-1.5 mb-1">
-                        <span className="text-3xl font-bold tracking-wider text-[#0d0f14]" style={{ fontFamily: 'var(--font-display)' }}>
-                          {fmt(latest)}
-                        </span>
-                        <span className="text-sm text-[#94a3b8]">{unit}</span>
-                      </div>
-                      <p className="text-[10px] text-[#94a3b8] tracking-wider" style={{ fontFamily: 'var(--font-mono)' }}>
-                        Moyenne : <span className="text-[#64748b] font-semibold">{fmt(avg)}</span> {unit}
-                      </p>
-                      <p className="text-[10px] text-[#94a3b8] tracking-wider mt-0.5" style={{ fontFamily: 'var(--font-mono)' }}>
-                        Dernière : {fmtDate(lastTimestamp)}
-                      </p>
-                    </div>
-                  )
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
-
     </div>
   )
 }

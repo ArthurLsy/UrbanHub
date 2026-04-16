@@ -6,5 +6,8 @@ public record SensorDto(
     UUID uuid,
     String sensorId,
     String sensorTypeId,
-    Boolean status
+    Double latitude,
+    Double longitude,
+    Boolean status,
+    String zoneId
 ) {}

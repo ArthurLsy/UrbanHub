@@ -86,7 +86,8 @@ public interface MeasureRepository extends JpaRepository<Measure, UUID> {
             FROM measure m
             JOIN sensor s ON m.sensor_uuid = s.uuid
             JOIN sensor_type st ON s.sensor_type = st.uuid
-            JOIN zone z ON s.zone_id = z.uuid
+            JOIN zone_sensor zs ON s.uuid = zs.sensor_uuid
+            JOIN zone z ON zs.zone_uuid = z.uuid
             WHERE st.sensor_type_id = :sensorTypeId
             AND z.zone_id = :zoneId
             AND m.timestamp >= :startTime

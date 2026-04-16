@@ -104,7 +104,10 @@ public class ZoneService {
                                 s.getUuid(),
                                 s.getSensorId(),
                                 s.getSensorType().getSensorTypeId(),
-                                s.getLastUpdate() != null && !s.getLastUpdate().isBefore(cutoff)))
+                                s.getLatitude(),
+                                s.getLongitude(),
+                                s.getLastUpdate() != null && !s.getLastUpdate().isBefore(cutoff),
+                                null))
                         .toList();
         return new ZoneDto(zone.getUuid(), zone.getZoneId(), sensorDtos);
     }

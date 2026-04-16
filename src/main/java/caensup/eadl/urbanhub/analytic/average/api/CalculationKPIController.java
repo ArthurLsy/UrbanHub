@@ -45,8 +45,14 @@ public class CalculationKPIController {
      * @throws IllegalArgumentException if the provided measureType does not match any valid {@link MeasureType}.
      */
     @GetMapping("/bytype")
-    public List<KPI> getKPIbyType(@NotNull @RequestBody MeasureTypeKpiRequest measureTypeKpiRequest) {
-        MeasureType type = MeasureType.valueOf(measureTypeKpiRequest.measureType().toUpperCase());
+    public List<KPI> getKPIbyType(@NotNull MeasureTypeKpiRequest measureTypeKpiRequest) {
+        MeasureType type;
+        try {
+            type = MeasureType.valueOf(measureTypeKpiRequest.measureType().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            // Le type reçu n'existe pas dans l'enum (ex: 'TEST')
+            return List.of();
+        }
         return calculationKPIService.getKPIbyType(type, measureTypeKpiRequest.bucket(), measureTypeKpiRequest.start().toInstant(ZoneOffset.UTC), measureTypeKpiRequest.end().toInstant(ZoneOffset.UTC));
     }
 
@@ -69,7 +75,7 @@ public class CalculationKPIController {
      * a {@link List} of {@link KPI} aggregated data points for that specific type.
      */
     @GetMapping("/byzone")
-    public Map<String, List<KPI>> getKPIbyZone(@NotNull @RequestBody ZoneIdKpiRequest zoneIdKpiRequest) {
+    public Map<String, List<KPI>> getKPIbyZone(@NotNull ZoneIdKpiRequest zoneIdKpiRequest) {
         return calculationKPIService.getKPIbyZone(zoneIdKpiRequest.zoneId(), zoneIdKpiRequest.bucket(), zoneIdKpiRequest.start().toInstant(ZoneOffset.UTC), zoneIdKpiRequest.end().toInstant(ZoneOffset.UTC));
     }
 
@@ -91,7 +97,7 @@ public class CalculationKPIController {
      * @return A {@link List} of {@link KPI} objects representing the aggregated values for this specific sensor.
      */
     @GetMapping("/bysensor")
-    public List<KPI> getKPIbySensor(@NotNull @RequestBody SensorIdKpiRequest sensorIdKpiRequest) {
+    public List<KPI> getKPIbySensor(@NotNull SensorIdKpiRequest sensorIdKpiRequest) {
         return calculationKPIService.getKPIbySensorId(sensorIdKpiRequest.sensorId(), sensorIdKpiRequest.bucket(), sensorIdKpiRequest.start().toInstant(ZoneOffset.UTC), sensorIdKpiRequest.end().toInstant(ZoneOffset.UTC));
     }
 }

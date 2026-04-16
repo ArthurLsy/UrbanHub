@@ -10,6 +10,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Input } from '@/components/ui/input'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { Skeleton } from '@/components/ui/skeleton'
 
 type SortKey = 'sensorId' | 'type' | 'status'
 type SortDir = 'asc' | 'desc'
@@ -25,6 +26,8 @@ const SensorsPage = () => {
   const [pageSize, setPageSize] = useState(5)
   const [search, setSearch] = useState('')
 
+  const sensors = useMemo<Sensor[]>(() => data ?? [], [data])
+
   // Benchmark : temps de chargement frontend
   const fetchStartRef = useRef<number | null>(null)
   const [fetchDuration, setFetchDuration] = useState<number | null>(null)
@@ -32,24 +35,19 @@ const SensorsPage = () => {
   useEffect(() => {
     if (isFetching) {
       fetchStartRef.current = performance.now()
-    } else if (!isFetching && fetchStartRef.current !== null && data) {
+    } else if (!isFetching && fetchStartRef.current !== null && sensors) {
       const elapsed = (performance.now() - fetchStartRef.current) / 1000
       setFetchDuration(elapsed)
       fetchStartRef.current = null
     }
-  }, [isFetching, data])
+  }, [isFetching, sensors])
 
   useEffect(() => {
     setCurrentPage(1)
   }, [search, typeFilter, sortKey, sortDir, pageSize])
-
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [search, typeFilter, sortKey, sortDir, pageSize])
-
-  const sensors = useMemo<Sensor[]>(() => data ?? [], [data])
 
   const filteredSensors = useMemo(() => {
+    if (!sensors) return []
     let result = [...sensors]
 
     if (search.trim()) {
@@ -72,7 +70,7 @@ const SensorsPage = () => {
       } else if (sortKey === 'type') {
         cmp = a.sensorTypeId.localeCompare(b.sensorTypeId)
       } else if (sortKey === 'status') {
-        cmp = (a.sensorStatus === b.sensorStatus) ? 0 : a.sensorStatus ? -1 : 1
+        cmp = (a.status === b.status) ? 0 : a.status ? -1 : 1
       }
       return sortDir === 'asc' ? cmp : -cmp
     })
@@ -87,7 +85,7 @@ const SensorsPage = () => {
   )
 
   const uniqueTypes = useMemo(() => {
-    return Array.from(new Set(sensors.map((s) => s.sensorTypeId)))
+    return Array.from(new Set((sensors ?? []).map((s) => s.sensorTypeId)))
   }, [sensors])
 
   const toggleSort = (key: SortKey) => {
@@ -256,17 +254,25 @@ const SensorsPage = () => {
 
       <Card>
         <CardContent className="p-6">
-          {isLoading && (
-            <p className="text-sm text-[#94a3b8] tracking-wider animate-pulse" style={{ fontFamily: 'var(--font-mono)' }}>
-              Chargement...
-            </p>
-          )}
-          {isError && (
+          {isLoading ? (
+            <div className="space-y-4">
+              <div className="flex gap-4">
+                <Skeleton className="h-10 w-32" />
+                <Skeleton className="h-10 w-32" />
+                <Skeleton className="h-10 w-32" />
+              </div>
+              <Skeleton className="h-10 w-full" />
+              <div className="space-y-3">
+                {[1, 2, 3].map(i => (
+                  <Skeleton key={i} className="h-16 w-full" />
+                ))}
+              </div>
+            </div>
+          ) : isError ? (
             <p className="text-sm text-red-500 tracking-wider" style={{ fontFamily: 'var(--font-mono)' }}>
               Erreur de connexion au backend.
             </p>
-          )}
-          {data && (
+          ) : (
             <>
               {/* Count + page size selector */}
               <div className="flex items-center justify-between mb-4">
@@ -308,7 +314,7 @@ const SensorsPage = () => {
                         className="flex items-center justify-between px-5 py-4 rounded-lg border border-[#e2e8f0] hover:border-[#00e5a0]/50 hover:bg-[#f8fafc] transition-all duration-150 group"
                       >
                         <div className="flex items-center gap-4">
-                          <span className={['w-2.5 h-2.5 rounded-full shrink-0', sensor.sensorStatus ? 'bg-[#00e5a0]' : 'bg-[#94a3b8]'].join(' ')} />
+                          <span className={['w-2.5 h-2.5 rounded-full shrink-0', sensor.status ? 'bg-[#00e5a0]' : 'bg-[#94a3b8]'].join(' ')} />
                           <span className="text-base font-semibold tracking-wider uppercase" style={{ fontFamily: 'var(--font-display)', color: '#1e293b' }}>
                             {sensor.sensorId}
                           </span>
@@ -317,8 +323,8 @@ const SensorsPage = () => {
                           <span className="text-sm text-[#94a3b8] tracking-wider uppercase" style={{ fontFamily: 'var(--font-mono)' }}>
                             {sensor.sensorTypeId}
                           </span>
-                          <Badge className={sensor.sensorStatus ? 'bg-[#00e5a0]/10 text-[#00b07d] border border-[#00e5a0]/30' : 'bg-[#f1f5f9] text-[#94a3b8]'}>
-                            {sensor.sensorStatus ? 'Actif' : 'Inactif'}
+                          <Badge className={sensor.status ? 'bg-[#00e5a0]/10 text-[#00b07d] border border-[#00e5a0]/30' : 'bg-[#f1f5f9] text-[#94a3b8]'}>
+                            {sensor.status ? 'Actif' : 'Inactif'}
                           </Badge>
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#94a3b8] group-hover:text-[#00b07d] transition-colors">
                             <polyline points="9 18 15 12 9 6" />

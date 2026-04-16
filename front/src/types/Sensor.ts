@@ -1,8 +1,9 @@
 export type Sensor = {
+  uuid: string
   sensorId: string
+  sensorTypeId: string
   latitude: number
   longitude: number
-  sensorStatus: boolean
-  zoneId: string
-  sensorTypeId: string
+  status: boolean
+  zoneId: string | null
 }

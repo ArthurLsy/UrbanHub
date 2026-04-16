@@ -581,6 +581,109 @@ GET /api/trends/period?start=2026-04-11T08:00:00Z&end=2026-04-11T12:00:00Z
 
 ---
 
+## KPI (Moyennes)
+
+### GET /analytic/kpi/average/bytype
+Retourne une liste de KPI (moyennes) pour un type de mesure donné.
+
+**Body (JSON)**
+```json
+{
+  "measureType": "AIR",
+  "bucket": "1 hour",
+  "start": "2026-04-14T00:00:00",
+  "end": "2026-04-14T23:59:59"
+}
+```
+
+| Champ | Type | Description |
+|---|---|---|
+| `measureType` | string | Type de mesure (ex: `AIR`, `NOISE`) |
+| `bucket` | string | Intervalle d'agrégation (ex: `1 hour`, `1 day`) |
+| `start` | string | Date de début (sans timezone) |
+| `end` | string | Date de fin (sans timezone) |
+
+**Réponse** : liste d'objets KPI
+```json
+[
+  {
+    "bucket": "2026-04-14T10:00:00Z",
+    "average": 42.5,
+    "unite": "µg/m³"
+  }
+]
+```
+
+---
+
+### GET /analytic/kpi/average/byzone
+Retourne une carte des KPI (moyennes) regroupés par type de mesure pour une zone donnée.
+
+**Body (JSON)**
+```json
+{
+  "zoneId": "CENTRE",
+  "bucket": "1 hour",
+  "start": "2026-04-14T00:00:00",
+  "end": "2026-04-14T23:59:59"
+}
+```
+
+| Champ | Type | Description |
+|---|---|---|
+| `zoneId` | string | Identifiant métier de la zone |
+| `bucket` | string | Intervalle d'agrégation (ex: `1 hour`, `1 day`) |
+| `start` | string | Date de début (sans timezone) |
+| `end` | string | Date de fin (sans timezone) |
+
+**Réponse** : dictionnaire avec le type de mesure en clé et liste d'objets KPI en valeur
+```json
+{
+  "AIR": [
+    {
+      "bucket": "2026-04-14T10:00:00Z",
+      "average": 42.5,
+      "unite": "µg/m³"
+    }
+  ]
+}
+```
+
+---
+
+### GET /analytic/kpi/average/bysensor
+Retourne une liste de KPI (moyennes) pour un capteur spécifique.
+
+**Body (JSON)**
+```json
+{
+  "sensorId": "CAPTEUR_01",
+  "bucket": "1 hour",
+  "start": "2026-04-14T00:00:00",
+  "end": "2026-04-14T23:59:59"
+}
+```
+
+| Champ | Type | Description |
+|---|---|---|
+| `sensorId` | string | Identifiant métier du capteur |
+| `bucket` | string | Intervalle d'agrégation (ex: `1 hour`, `1 day`) |
+| `start` | string | Date de début (sans timezone) |
+| `end` | string | Date de fin (sans timezone) |
+
+**Réponse** : liste d'objets KPI
+```json
+[
+  {
+    "bucket": "2026-04-14T10:00:00Z",
+    "average": 42.5,
+    "unite": "µg/m³"
+  }
+]
+```
+
+---
+
 ## Codes d'erreur
 
 | Code | Cas |

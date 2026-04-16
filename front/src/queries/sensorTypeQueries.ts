@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { fetchSensorTypes, fetchSensorTypesCount, fetchSensorTypeById } from '../services/sensorTypeService'
+import { fetchSensorTypes, fetchSensorTypeCount } from '../services/sensorTypeService'
 
 export const useSensorTypes = () => {
   return useQuery({
@@ -8,17 +8,9 @@ export const useSensorTypes = () => {
   })
 }
 
-export const useSensorTypesCount = () => {
+export const useSensorTypeCount = () => {
   return useQuery({
     queryKey: ['sensor-types', 'count'],
-    queryFn: fetchSensorTypesCount,
-  })
-}
-
-export const useSensorTypeById = (sensorTypeId: string) => {
-  return useQuery({
-    queryKey: ['sensor-types', sensorTypeId],
-    queryFn: () => fetchSensorTypeById(sensorTypeId),
-    enabled: !!sensorTypeId,
+    queryFn: fetchSensorTypeCount,
   })
 }

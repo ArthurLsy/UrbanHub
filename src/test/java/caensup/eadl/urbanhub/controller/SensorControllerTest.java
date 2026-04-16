@@ -53,7 +53,7 @@ class SensorControllerTest {
     void getByStatusShouldReturnSensorList() throws Exception {
         UUID u = UUID.randomUUID();
         when(sensorService.getByStatus(true))
-                .thenReturn(List.of(new SensorDto(u, "S1", "AIR", true)));
+                .thenReturn(List.of(new SensorDto(u, "S1", "AIR", 0.0, 0.0, true, null)));
 
         mockMvc.perform(get("/api/sensors/status"))
                 .andExpect(status().isOk())

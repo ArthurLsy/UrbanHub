@@ -14,7 +14,7 @@ import java.util.List;
 @Getter
 @AllArgsConstructor
 public class Filters {
-    List<String> Type;
+    List<String> type;
     List<String> zoneIds;
     LocalDateTime debut;
     LocalDateTime fin;
