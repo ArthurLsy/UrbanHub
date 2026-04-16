@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -53,7 +54,7 @@ class MeasureIngestServiceImplTest {
 
         service.ingestMeasure(validWeatherJson("CAP-001"));
 
-        verify(sensorRepository, never()).save(any());
+        verify(sensorRepository).save(any());
         verify(measureRepository).save(any());
     }
 
@@ -68,7 +69,7 @@ class MeasureIngestServiceImplTest {
         service.ingestMeasure(validWeatherJson("CAP-NEW"));
 
         verify(sensorTypeRepository, never()).save(any());
-        verify(sensorRepository).save(argThat(s -> "CAP-NEW".equals(s.getSensorId())));
+        verify(sensorRepository, times(2)).save(argThat(s -> "CAP-NEW".equals(s.getSensorId())));
         verify(measureRepository).save(any());
     }
 
@@ -83,7 +84,7 @@ class MeasureIngestServiceImplTest {
         service.ingestMeasure(validWeatherJson("CAP-NEW"));
 
         verify(sensorTypeRepository).save(argThat(t -> "WEATHER".equals(t.getSensorTypeId())));
-        verify(sensorRepository).save(any());
+        verify(sensorRepository, times(2)).save(any());
         verify(measureRepository).save(any());
     }
 
@@ -101,7 +102,7 @@ class MeasureIngestServiceImplTest {
         IngestMeasureJson json = new IngestMeasureJson("CAP-LOC", "weather", "1718236800000", "49.1828; -0.3706", 18.5, "°C");
         service.ingestMeasure(json);
 
-        verify(sensorRepository).save(argThat(s ->
+        verify(sensorRepository, times(2)).save(argThat(s ->
                 s.getLatitude() == 49.1828 && s.getLongitude() == -0.3706
         ));
     }
@@ -116,7 +117,7 @@ class MeasureIngestServiceImplTest {
         IngestMeasureJson json = new IngestMeasureJson("CAP-NULL", "weather", "1718236800000", null, 18.5, "°C");
         service.ingestMeasure(json);
 
-        verify(sensorRepository).save(argThat(s ->
+        verify(sensorRepository, times(2)).save(argThat(s ->
                 s.getLatitude() == 0.0 && s.getLongitude() == 0.0
         ));
     }

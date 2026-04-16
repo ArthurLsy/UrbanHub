@@ -141,7 +141,6 @@ class MeasureControllerTest {
                                 "CAP-001",
                                 49.1829,
                                 -0.3707,
-                                true,
                                 "ZONE-001",
                                 "TYPE-001");
         }

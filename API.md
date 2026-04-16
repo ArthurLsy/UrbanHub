@@ -116,6 +116,85 @@ Ingère une nouvelle mesure depuis un capteur.
 
 ---
 
+## Capteurs
+
+### GET /api/sensors
+Retourne tous les capteurs avec leur statut calculé (`status=true` si actif sur la dernière heure).
+
+```
+GET /api/sensors
+```
+
+**Réponse**
+```json
+[
+  {
+    "uuid": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "sensorId": "CAPTEUR_01",
+    "sensorTypeId": "AIR",
+    "status": true
+  }
+]
+```
+
+---
+
+### GET /api/sensors/status
+Retourne les capteurs filtrés par statut.
+
+**Paramètres (optionnels)**
+| Nom | Type | Description |
+|---|---|---|
+| `alive` | boolean | `true` (défaut): capteurs actifs, `false`: capteurs inactifs |
+
+**Exemples**
+```
+GET /api/sensors/status
+GET /api/sensors/status?alive=false
+```
+
+**Réponse** : même structure que `/api/sensors`
+
+---
+
+### GET /api/sensors/status/count
+Retourne le nombre de capteurs filtrés par statut.
+
+**Paramètres (optionnels)**
+| Nom | Type | Description |
+|---|---|---|
+| `alive` | boolean | `true` (défaut): capteurs actifs, `false`: capteurs inactifs |
+
+```
+GET /api/sensors/status/count?alive=true
+```
+
+**Réponse**
+```json
+12
+```
+
+---
+
+### GET /api/sensors/status/ratio
+Retourne le ratio des capteurs filtrés par statut parmi tous les capteurs (valeur entre `0.0` et `1.0`).
+
+**Paramètres (optionnels)**
+| Nom | Type | Description |
+|---|---|---|
+| `alive` | boolean | `true` (défaut): capteurs actifs, `false`: capteurs inactifs |
+
+```
+GET /api/sensors/status/ratio?alive=true
+```
+
+**Réponse**
+```json
+0.75
+```
+
+---
+
 ## Zones
 
 ### GET /api/zones
@@ -130,7 +209,15 @@ GET /api/zones
 [
   {
     "uuid": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-    "zoneId": "CENTRE"
+    "zoneId": "CENTRE",
+    "sensors": [
+      {
+        "uuid": "13b720f3-5008-4ebf-a9f1-4e66567021a9",
+        "sensorId": "sensor-centre-1",
+        "sensorTypeId": "AIR",
+        "status": true
+      }
+    ]
   }
 ]
 ```
@@ -167,9 +254,92 @@ GET /api/zones/by-id?zone_id=CENTRE
 ```json
 {
   "uuid": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-  "zoneId": "CENTRE"
+  "zoneId": "CENTRE",
+  "sensors": [
+    {
+      "uuid": "13b720f3-5008-4ebf-a9f1-4e66567021a9",
+      "sensorId": "sensor-centre-1",
+      "sensorTypeId": "AIR",
+      "status": true
+    }
+  ]
 }
 ```
+
+---
+
+### POST /api/zones
+Crée une nouvelle zone.
+
+**Body**
+```json
+{
+  "zoneId": "EAST",
+  "sensorIds": ["sensor-east-1", "sensor-east-2"]
+}
+```
+
+| Champ | Obligatoire | Description |
+|---|---|---|
+| `zoneId` | oui | Identifiant métier unique de la zone |
+| `sensorIds` | non | Liste des identifiants métier des capteurs à associer |
+
+**Réponse**
+```json
+{
+  "uuid": "c5b2f60e-26a9-4045-b8e2-43069f50f7a2",
+  "zoneId": "EAST",
+  "sensors": [
+    {
+      "uuid": "70a3d5fe-b9af-4eb7-a59b-0f2f845eb6fd",
+      "sensorId": "sensor-east-1",
+      "sensorTypeId": "AIR",
+      "status": true
+    }
+  ]
+}
+```
+
+---
+
+### PUT /api/zones/{zoneId}
+Met à jour une zone existante (nom et/ou liste de capteurs).
+
+**Paramètres de chemin**
+| Nom | Type | Description |
+|---|---|---|
+| `zoneId` | string | Identifiant métier actuel de la zone |
+
+**Body**
+```json
+{
+  "zoneId": "EAST-NEW",
+  "sensorIds": ["sensor-east-1"]
+}
+```
+
+| Champ | Obligatoire | Description |
+|---|---|---|
+| `zoneId` | non | Nouvel identifiant métier |
+| `sensorIds` | non | Nouvelle liste complète de capteurs associés |
+
+**Réponse** : objet `ZoneDto` (même structure que `GET /api/zones/by-id`)
+
+---
+
+### DELETE /api/zones/{zoneId}
+Supprime une zone existante.
+
+**Paramètres de chemin**
+| Nom | Type | Description |
+|---|---|---|
+| `zoneId` | string | Identifiant métier de la zone |
+
+```
+DELETE /api/zones/EAST
+```
+
+**Réponse** : `200 OK` (pas de body)
 
 ---
 
@@ -417,4 +587,5 @@ GET /api/trends/period?start=2026-04-11T08:00:00Z&end=2026-04-11T12:00:00Z
 |---|---|
 | `400 Bad Request` | Format de date invalide |
 | `404 Not Found` | Ressource introuvable (`zone_id`, `sensor_type_id`) |
+| `409 Conflict` | Conflit métier (ex: création/renommage d'une zone déjà existante) |
 | `422 Unprocessable Entity` | Mesure invalide lors de l'ingestion |

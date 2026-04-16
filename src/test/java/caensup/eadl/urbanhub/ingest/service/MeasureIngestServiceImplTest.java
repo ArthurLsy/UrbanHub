@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -55,7 +56,7 @@ class MeasureIngestServiceImplTest {
         service.ingestMeasure(new IngestMeasureJson("CAP-001", "air", "1744538100000", "49.18;-0.37", 25.0, "\u03bcg/m3"));
 
         verify(sensorRepository).findBySensorId("CAP-001");
-        verify(sensorRepository, never()).save(any());
+        verify(sensorRepository).save(any());
         verify(measureRepository).save(any());
     }
 
@@ -65,19 +66,16 @@ class MeasureIngestServiceImplTest {
         SensorType existingType = new SensorType();
         existingType.setSensorTypeId("AIR");
 
-        Sensor savedSensor = new Sensor();
-        savedSensor.setSensorId("CAP-NEW");
-
         when(sensorRepository.findBySensorId("CAP-NEW")).thenReturn(Optional.empty());
         when(sensorTypeRepository.findBySensorTypeId("AIR")).thenReturn(Optional.of(existingType));
-        when(sensorRepository.save(any())).thenReturn(savedSensor);
+        when(sensorRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(measureRepository.save(any())).thenReturn(new Measure());
 
         service.ingestMeasure(new IngestMeasureJson("CAP-NEW", "air", "1744538100000", "49.18;-0.37", 25.0, "\u03bcg/m3"));
 
         verify(sensorTypeRepository).findBySensorTypeId("AIR");
         verify(sensorTypeRepository, never()).save(any());
-        verify(sensorRepository).save(any());
+        verify(sensorRepository, times(2)).save(any());
         verify(measureRepository).save(any());
     }
 
@@ -87,20 +85,17 @@ class MeasureIngestServiceImplTest {
         SensorType savedType = new SensorType();
         savedType.setSensorTypeId("AIR");
 
-        Sensor savedSensor = new Sensor();
-        savedSensor.setSensorId("CAP-NEW");
-
         when(sensorRepository.findBySensorId("CAP-NEW")).thenReturn(Optional.empty());
         when(sensorTypeRepository.findBySensorTypeId("AIR")).thenReturn(Optional.empty());
         when(sensorTypeRepository.save(any())).thenReturn(savedType);
-        when(sensorRepository.save(any())).thenReturn(savedSensor);
+        when(sensorRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(measureRepository.save(any())).thenReturn(new Measure());
 
         service.ingestMeasure(new IngestMeasureJson("CAP-NEW", "air", "1744538100000", null, 25.0, "\u03bcg/m3"));
 
         verify(sensorTypeRepository).findBySensorTypeId("AIR");
         verify(sensorTypeRepository).save(any());
-        verify(sensorRepository).save(any());
+        verify(sensorRepository, times(2)).save(any());
         verify(measureRepository).save(any());
     }
 
@@ -108,17 +103,15 @@ class MeasureIngestServiceImplTest {
     @DisplayName("ingestMeasure parse correctement les coordonnées depuis la localisation")
     void shouldParseCoordinatesFromLocation() {
         SensorType sensorType = new SensorType();
-        Sensor savedSensor = new Sensor();
-        savedSensor.setSensorId("CAP-LOC");
 
         when(sensorRepository.findBySensorId("CAP-LOC")).thenReturn(Optional.empty());
         when(sensorTypeRepository.findBySensorTypeId("NOISE")).thenReturn(Optional.of(sensorType));
-        when(sensorRepository.save(any())).thenReturn(savedSensor);
+        when(sensorRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(measureRepository.save(any())).thenReturn(new Measure());
 
         service.ingestMeasure(new IngestMeasureJson("CAP-LOC", "noise", "1744538100000", "49.18;-0.37", 50.0, "dB"));
 
-        verify(sensorRepository).save(argThat(s ->
+        verify(sensorRepository, times(2)).save(argThat(s ->
                 s.getLatitude() == 49.18 && s.getLongitude() == -0.37
         ));
     }
@@ -129,16 +122,16 @@ class MeasureIngestServiceImplTest {
     @DisplayName("ingestMeasure utilise 0.0 pour les coordonnées si la localisation est null ou sans point-virgule")
     void shouldDefaultToZeroCoordinatesForInvalidLocation(String location) {
         SensorType sensorType = new SensorType();
-        Sensor savedSensor = new Sensor();
 
         when(sensorRepository.findBySensorId("CAP-BAD")).thenReturn(Optional.empty());
         when(sensorTypeRepository.findBySensorTypeId("NOISE")).thenReturn(Optional.of(sensorType));
-        when(sensorRepository.save(any())).thenReturn(savedSensor);
+        // Le service utilise la valeur retournée par save() : renvoyer l'entité passée (avec lat/lon déjà posées).
+        when(sensorRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(measureRepository.save(any())).thenReturn(new Measure());
 
         service.ingestMeasure(new IngestMeasureJson("CAP-BAD", "noise", "1744538100000", location, 50.0, "dB"));
 
-        verify(sensorRepository).save(argThat(s ->
+        verify(sensorRepository, times(2)).save(argThat(s ->
                 s.getLatitude() == 0.0 && s.getLongitude() == 0.0
         ));
     }
