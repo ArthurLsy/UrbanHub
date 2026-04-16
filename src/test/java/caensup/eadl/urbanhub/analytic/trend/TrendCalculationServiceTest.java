@@ -47,7 +47,7 @@ public class TrendCalculationServiceTest {
         m2.setValue(10.0f);
         m2.setSensor(s);
 
-        when(repo.findTop2BySensor_SensorIdOrderById_TimestampDesc(eq("S1"))).thenReturn(List.of(m1, m2));
+        when(repo.findTop2BySensor_SensorIdOrderById_TimestampDesc("S1")).thenReturn(List.of(m1, m2));
 
         Optional<TrendDto> res = service.computeTrendLatestVsPrevious("S1");
         assertTrue(res.isPresent());
@@ -83,7 +83,7 @@ public class TrendCalculationServiceTest {
         after.setValue(30.0f);
         after.setSensor(s);
 
-        when(repo.findTopBySensor_SensorIdOrderById_TimestampDesc(eq("S2"))).thenReturn(Optional.of(latest));
+        when(repo.findTopBySensor_SensorIdOrderById_TimestampDesc("S2")).thenReturn(Optional.of(latest));
         when(repo.findTopBySensor_SensorIdAndId_TimestampLessThanEqualOrderById_TimestampDesc(eq("S2"), any())).thenReturn(Optional.of(before));
         when(repo.findTopBySensor_SensorIdAndId_TimestampGreaterThanEqualOrderById_TimestampAsc(eq("S2"), any())).thenReturn(Optional.of(after));
 
@@ -132,7 +132,7 @@ public class TrendCalculationServiceTest {
         Measure m2 = new Measure(); m2.setId(new MeasureId(OffsetDateTime.parse("2026-04-10T11:00:00Z"), UUID.randomUUID())); m2.setValue(7.0f); m2.setSensor(s);
         Measure m3 = new Measure(); m3.setId(new MeasureId(OffsetDateTime.parse("2026-04-10T12:30:00Z"), UUID.randomUUID())); m3.setValue(9.0f); m3.setSensor(s);
 
-        when(repo.findBySensor_SensorId(eq("SP1"))).thenReturn(List.of(m1, m2, m3));
+        when(repo.findBySensor_SensorId("SP1")).thenReturn(List.of(m1, m2, m3));
 
         Optional<TrendDto> res = service.computeTrendForSensorInPeriod("SP1", OffsetDateTime.parse("2026-04-10T09:00:00Z"), OffsetDateTime.parse("2026-04-10T12:00:00Z"));
         assertTrue(res.isPresent());

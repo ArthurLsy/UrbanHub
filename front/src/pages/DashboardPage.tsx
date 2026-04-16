@@ -1,11 +1,14 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { useMeasures } from '../queries/measureQueries'
+import { useMeasuresCount, useMeasuresByDateRange } from '../queries/measureQueries'
 import { Card, CardContent } from '@/components/ui/card'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { Badge } from '@/components/ui/badge'
 import { AlertTriangle } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
+
+const today = new Date().toISOString().split('T')[0]
+const yesterday = new Date(Date.now() - 86_400_000).toISOString().split('T')[0]
 
 const formatCount = (n: number): string => {
   if (n >= 1_000_000) {
@@ -20,7 +23,9 @@ const formatCount = (n: number): string => {
 }
 
 const DashboardPage = () => {
-  const { data, isLoading } = useMeasures()
+  // Last 2 days only instead of full history — covers "no data today yet"
+  const { data, isLoading } = useMeasuresByDateRange(yesterday, today)
+  const { data: totalMeasureCount } = useMeasuresCount()
 
   const stats = useMemo(() => {
     if (!data || data.length === 0) {
@@ -29,7 +34,6 @@ const DashboardPage = () => {
         activeSensors: 0,
         inactiveSensors: 0,
         uptimePercent: 0,
-        measureCount: 0,
         typeCount: 0,
         typeBreakdown: [] as { type: string; count: number }[],
         mostActiveSensor: null as string | null,
@@ -38,7 +42,6 @@ const DashboardPage = () => {
       }
     }
 
-    // Unique sensors with their status
     const sensorMap = new Map<string, boolean>()
     const measureCountBySensor = new Map<string, number>()
     const measureCountByType = new Map<string, number>()
@@ -46,9 +49,8 @@ const DashboardPage = () => {
     const typeUnits = new Map<string, string>()
     const typeLatest = new Map<string, { value: number; timestamp: string }>()
 
-    // Sort data by timestamp ascending so latest is last
-    const sorted = [...data].sort((a, b) =>
-      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    const sorted = [...data].sort(
+      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
     )
 
     sorted.forEach((m) => {
@@ -68,9 +70,7 @@ const DashboardPage = () => {
     const activeSensors = Array.from(sensorMap.values()).filter(Boolean).length
     const inactiveSensors = sensorCount - activeSensors
     const uptimePercent = sensorCount > 0 ? Math.round((activeSensors / sensorCount) * 100) : 0
-
-    const uniqueTypes = new Set(data.map((m) => m.sensorTypeId))
-    const typeCount = uniqueTypes.size
+    const typeCount = typeValues.size
 
     const typeBreakdown = Array.from(measureCountByType.entries())
       .map(([type, count]) => ({ type, count }))
@@ -98,12 +98,12 @@ const DashboardPage = () => {
       activeSensors,
       inactiveSensors,
       uptimePercent,
-      measureCount: data.length,
       typeCount,
       typeBreakdown,
       mostActiveSensor,
       mostActiveMeasureCount,
       typeStats,
+      recentMeasureCount: data.length
     }
   }, [data])
 
@@ -161,9 +161,7 @@ const DashboardPage = () => {
             </div>
           )}
 
-          {/* Stat cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
-
             {/* Capteurs card */}
             <Card className="p-8">
               <CardContent className="flex items-start gap-5 p-0">
@@ -182,7 +180,6 @@ const DashboardPage = () => {
                   </p>
                   {data && stats.sensorCount > 0 && (
                     <div className="flex items-center gap-1.5 mt-2">
-                      {/* Pulsing dot */}
                       <span className="relative flex h-2 w-2 shrink-0">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00e5a0] opacity-75" />
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-[#00e5a0]" />
@@ -221,13 +218,11 @@ const DashboardPage = () => {
                           className="h-full rounded-full transition-all duration-700"
                           style={{
                             width: `${stats.uptimePercent}%`,
-                            background: stats.uptimePercent === 100
+                            background: stats.uptimePercent >= 80
                               ? '#00e5a0'
-                              : stats.uptimePercent >= 80
-                                ? '#00e5a0'
-                                : stats.uptimePercent >= 50
-                                  ? '#f59e0b'
-                                  : '#ef4444',
+                              : stats.uptimePercent >= 50
+                                ? '#f59e0b'
+                                : '#ef4444',
                           }}
                         />
                       </div>
@@ -253,7 +248,7 @@ const DashboardPage = () => {
                     Mesures
                   </p>
                   <p className="text-4xl font-bold tracking-wider text-[#0d0f14]" style={{ fontFamily: 'var(--font-display)' }}>
-                    {formatCount(stats.measureCount)}
+                    {totalMeasureCount !== undefined ? formatCount(totalMeasureCount) : '—'}
                   </p>
                   {stats.mostActiveSensor && (
                     <p className="text-[10px] text-[#94a3b8] tracking-wider mt-2 truncate" style={{ fontFamily: 'var(--font-mono)' }}>
@@ -264,7 +259,7 @@ const DashboardPage = () => {
                       >
                         {stats.mostActiveSensor}
                       </Link>
-                      {' '}({stats.mostActiveMeasureCount} mesures)
+                      {' '}({stats.mostActiveMeasureCount} mesures récentes)
                     </p>
                   )}
                 </div>
@@ -318,12 +313,9 @@ const DashboardPage = () => {
                 </div>
               </CardContent>
             </Card>
-
-
           </div>
         </>
       )}
-
     </div>
   )
 }

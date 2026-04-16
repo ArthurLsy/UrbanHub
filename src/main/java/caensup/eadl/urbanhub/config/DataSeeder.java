@@ -173,7 +173,7 @@ public class DataSeeder {
                     double lat = CAEN_LOCATIONS[i][0] + jitterLat;
                     double lon = CAEN_LOCATIONS[i][1] + jitterLon;
                     for (int step = 48 * 2; step >= 0; step--) {
-                        Instant ts = Instant.now().minus(step * 30, ChronoUnit.MINUTES);
+                        Instant ts = Instant.now().minus((long) step * 30, ChronoUnit.MINUTES);
                         double hourOfDay = (ts.getEpochSecond() / 3600.0) % 24;
                         double dailyPattern = Math.sin(2 * Math.PI * (hourOfDay - 6) / 24) * 0.3 + 0.7;
                         double value = range[0] + Math.random() * (range[1] - range[0]) * dailyPattern;
