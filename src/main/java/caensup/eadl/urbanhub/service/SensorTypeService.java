@@ -7,14 +7,10 @@ import caensup.eadl.urbanhub.repository.SensorTypeRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
 
 @Service
 public class SensorTypeService {
-
-    private static final Duration SENSOR_ALIVE_WINDOW = Duration.ofHours(1);
 
     private final SensorTypeRepository sensorTypeRepository;
 
@@ -39,31 +35,6 @@ public class SensorTypeService {
     @Transactional(readOnly = true)
     public long getCount() {
         return sensorTypeRepository.count();
-    }
-
-    /**
-     * @param alive {@code true} pour les types ayant au moins un capteur « vivant » (récent) ;
-     *              {@code false} pour ceux ayant au moins un capteur sans activité depuis plus d'une heure.
-     */
-    @Transactional(readOnly = true)
-    public List<SensorTypeDto> getByStatus(boolean alive) {
-        Instant cutoff = Instant.now().minus(SENSOR_ALIVE_WINDOW);
-        List<SensorType> types = alive
-                ? sensorTypeRepository.findDistinctWithSensorActivityOnOrAfter(cutoff)
-                : sensorTypeRepository.findDistinctWithSensorActivityBeforeOrNull(cutoff);
-        return types.stream().map(this::toDto).toList();
-    }
-
-    /**
-     * Nombre de types de capteurs correspondant au filtre {@code alive} (même logique que {@link #getByStatus(boolean)}).
-     */
-    @Transactional(readOnly = true)
-    public long getByStatusCount(boolean alive) {
-        Instant cutoff = Instant.now().minus(SENSOR_ALIVE_WINDOW);
-        List<SensorType> types = alive
-                ? sensorTypeRepository.findDistinctWithSensorActivityOnOrAfter(cutoff)
-                : sensorTypeRepository.findDistinctWithSensorActivityBeforeOrNull(cutoff);
-        return types.size();
     }
 
     private SensorTypeDto toDto(SensorType sensorType) {
