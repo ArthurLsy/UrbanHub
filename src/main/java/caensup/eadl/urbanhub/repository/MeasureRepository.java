@@ -32,7 +32,7 @@ public interface MeasureRepository extends JpaRepository<Measure, UUID> {
      */
     @Override
     @NotNull
-    @EntityGraph(attributePaths = {"sensor", "sensor.zone", "sensor.sensorType"})
+    @EntityGraph(attributePaths = {"sensor", "sensor.zones", "sensor.sensorType"})
     List<Measure> findAll();
 
     /**
@@ -47,7 +47,7 @@ public interface MeasureRepository extends JpaRepository<Measure, UUID> {
     /**
      * Returns the most recent measure for a sensor.
      */
-    @EntityGraph(attributePaths = {"sensor", "sensor.zone", "sensor.sensorType"})
+    @EntityGraph(attributePaths = {"sensor", "sensor.zones", "sensor.sensorType"})
     List<Measure> findBySensor_SensorId(String sensorId);
 
 
@@ -125,24 +125,24 @@ public interface MeasureRepository extends JpaRepository<Measure, UUID> {
             @Param("startTime") Instant startTime,
             @Param("endTime") Instant endTime);
 
-    @EntityGraph(attributePaths = {"sensor", "sensor.zone", "sensor.sensorType"})
+    @EntityGraph(attributePaths = {"sensor", "sensor.zones", "sensor.sensorType"})
     Optional<Measure> findTopBySensor_SensorIdOrderById_TimestampDesc(String sensorId);
 
     /**
      * Returns the N most recent measures for a sensor ordered descending by timestamp.
      */
-    @EntityGraph(attributePaths = {"sensor", "sensor.zone", "sensor.sensorType"})
+    @EntityGraph(attributePaths = {"sensor", "sensor.zones", "sensor.sensorType"})
     List<Measure> findTop2BySensor_SensorIdOrderById_TimestampDesc(String sensorId);
 
     /**
      * Returns the latest measure with timestamp <= given timestamp.
      */
-    @EntityGraph(attributePaths = {"sensor", "sensor.zone", "sensor.sensorType"})
+    @EntityGraph(attributePaths = {"sensor", "sensor.zones", "sensor.sensorType"})
     Optional<Measure> findTopBySensor_SensorIdAndId_TimestampLessThanEqualOrderById_TimestampDesc(String sensorId, OffsetDateTime ts);
 
     /**
      * Returns the earliest measure with timestamp >= given timestamp.
      */
-    @EntityGraph(attributePaths = {"sensor", "sensor.zone", "sensor.sensorType"})
+    @EntityGraph(attributePaths = {"sensor", "sensor.zones", "sensor.sensorType"})
     Optional<Measure> findTopBySensor_SensorIdAndId_TimestampGreaterThanEqualOrderById_TimestampAsc(String sensorId, OffsetDateTime ts);
 }
