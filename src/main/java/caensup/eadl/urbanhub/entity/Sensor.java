@@ -42,7 +42,7 @@ public class Sensor {
     @ManyToMany(mappedBy = "sensors")
     private Set<Zone> zones = new HashSet<>();
 
-    @Column(name = "last_update", nullable = false)
+    @Column(name = "last_update", nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP")
     private Instant lastUpdate = Instant.now();
 
     @ManyToOne

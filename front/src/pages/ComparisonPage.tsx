@@ -47,10 +47,11 @@ const ComparisonPage = () => {
     data.forEach((m) => {
       if (!map.has(m.sensorId)) {
         map.set(m.sensorId, {
+          uuid: '',
           sensorId: m.sensorId,
           latitude: m.latitude,
           longitude: m.longitude,
-          sensorStatus: m.sensorStatus,
+          status: m.sensorStatus,
           zoneId: m.zoneId,
           sensorTypeId: m.sensorTypeId,
         })
@@ -179,7 +180,7 @@ const ComparisonPage = () => {
             const sensor = sensors.find((s) => s.sensorId === sensorId)
             return (
               <Badge key={sensorId} className="bg-[#00e5a0]/10 text-[#00b07d] border border-[#00e5a0]/30 px-3 py-2">
-                <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${sensor?.sensorStatus ? 'bg-[#00e5a0]' : 'bg-[#94a3b8]'}`} />
+                <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${sensor?.status ? 'bg-[#00e5a0]' : 'bg-[#94a3b8]'}`} />
                 {sensorId}
                 <button
                   onClick={() => removeSensor(sensorId)}
