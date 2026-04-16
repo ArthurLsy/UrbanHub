@@ -91,6 +91,11 @@ public class DataSeeder {
             { 49.16916, -0.38202 },
     };
 
+    private static final String UNIT_AIR = "μg/m3";
+    private static final String UNIT_NOISE = "dB";
+    private static final String UNIT_TRAFFIC = "km/h";
+    private static final String UNIT_WEATHER = "°C";
+
     private String coords(double lat, double lon) {
         return lat + "," + lon;
     }
@@ -125,7 +130,7 @@ public class DataSeeder {
             Sensor s3 = new Sensor(); s3.setSensorId("sensor-north-1"); s3.setLatitude(45.5); s3.setLongitude(3.5); s3.setStatus(true); s3.setZones(Set.of(z2)); s3.setSensorType(air);
             // 4 sensor types × 15 locations = 60 sensors
             String[] types = { "AIR", "NOISE", "TRAFFIC", "WEATHER" };
-            String[] units = { "μg/m3", "dB", "km/h", "°C" };
+            String[] units = { UNIT_AIR, UNIT_NOISE, UNIT_TRAFFIC, UNIT_WEATHER };
             double[][] ranges = {
                     { 30.0, 55.0 }, // AIR
                     { 55.0, 80.0 }, // NOISE
@@ -168,7 +173,7 @@ public class DataSeeder {
                     double lat = CAEN_LOCATIONS[i][0] + jitterLat;
                     double lon = CAEN_LOCATIONS[i][1] + jitterLon;
                     for (int step = 48 * 2; step >= 0; step--) {
-                        Instant ts = Instant.now().minus(step * 30, ChronoUnit.MINUTES);
+                        Instant ts = Instant.now().minus((long) step * 30, ChronoUnit.MINUTES);
                         double hourOfDay = (ts.getEpochSecond() / 3600.0) % 24;
                         double dailyPattern = Math.sin(2 * Math.PI * (hourOfDay - 6) / 24) * 0.3 + 0.7;
                         double value = range[0] + Math.random() * (range[1] - range[0]) * dailyPattern;

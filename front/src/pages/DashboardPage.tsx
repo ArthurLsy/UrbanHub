@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { Badge } from '@/components/ui/badge'
 import { AlertTriangle } from 'lucide-react'
+import { Skeleton } from '@/components/ui/skeleton'
 
 const today = new Date().toISOString().split('T')[0]
 const yesterday = new Date(Date.now() - 86_400_000).toISOString().split('T')[0]
@@ -22,12 +23,9 @@ const formatCount = (n: number): string => {
 }
 
 const DashboardPage = () => {
-  // Total count: instant (1 integer), no need to load all measures
-  const { data: measureCount } = useMeasuresCount()
-
-  // Last 2 days only instead of full history — much smaller payload,
-  // covers "no data today yet" cases and gives us sensor status + values
-  const { data } = useMeasuresByDateRange(yesterday, today)
+  // Last 2 days only instead of full history — covers "no data today yet"
+  const { data, isLoading } = useMeasuresByDateRange(yesterday, today)
+  const { data: totalMeasureCount } = useMeasuresCount()
 
   const stats = useMemo(() => {
     if (!data || data.length === 0) {
@@ -105,6 +103,7 @@ const DashboardPage = () => {
       mostActiveSensor,
       mostActiveMeasureCount,
       typeStats,
+      recentMeasureCount: data.length
     }
   }, [data])
 
@@ -123,220 +122,200 @@ const DashboardPage = () => {
         <div className="mt-4 h-1 w-20 bg-[#00e5a0]" />
       </header>
 
-      {/* Offline alert banner */}
-      {showOfflineAlert && (
-        <div className="mb-6 flex items-center gap-3 px-5 py-4 rounded-xl border border-amber-200 bg-amber-50">
-          <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
-          <p className="text-sm text-amber-700 tracking-wide" style={{ fontFamily: 'var(--font-mono)' }}>
-            <span className="font-semibold">{stats.inactiveSensors} capteur{stats.inactiveSensors > 1 ? 's' : ''} hors-ligne</span>
-            {' '}— vérifiez l'état du réseau ou des dispositifs.
-          </p>
-          <Link
-            to="/capteurs"
-            className="ml-auto text-xs text-amber-600 hover:text-amber-800 underline underline-offset-2 tracking-wider transition-colors shrink-0"
-            style={{ fontFamily: 'var(--font-mono)' }}
-          >
-            Voir les capteurs →
-          </Link>
+      {isLoading && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map(i => (
+              <Card key={i} className="p-8">
+                <CardContent className="flex items-start gap-5 p-0">
+                  <Skeleton className="w-14 h-14 rounded-xl" />
+                  <div className="flex-1 space-y-3">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-10 w-16" />
+                    <Skeleton className="h-3 w-32" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <Skeleton className="h-48 w-full" />
         </div>
       )}
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
-
-        {/* Capteurs card */}
-        <Card className="p-8">
-          <CardContent className="flex items-start gap-5 p-0">
-            <div className="w-14 h-14 rounded-xl bg-[#00e5a0]/10 flex items-center justify-center text-[#00b07d] shrink-0">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M6.3 6.3a8 8 0 0 0 0 11.4M17.7 6.3a8 8 0 0 1 0 11.4M3.5 3.5a13 13 0 0 0 0 17M20.5 3.5a13 13 0 0 1 0 17" />
-              </svg>
+      {!isLoading && data && (
+        <>
+          {showOfflineAlert && (
+            <div className="mb-6 flex items-center gap-3 px-5 py-4 rounded-xl border border-amber-200 bg-amber-50">
+              <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
+              <p className="text-sm text-amber-700 tracking-wide" style={{ fontFamily: 'var(--font-mono)' }}>
+                <span className="font-semibold">{stats.inactiveSensors} capteur{stats.inactiveSensors > 1 ? 's' : ''} hors-ligne</span>
+                {' '}— vérifiez l'état du réseau ou des dispositifs.
+              </p>
+              <Link
+                to="/capteurs"
+                className="ml-auto text-xs text-amber-600 hover:text-amber-800 underline underline-offset-2 tracking-wider transition-colors shrink-0"
+                style={{ fontFamily: 'var(--font-mono)' }}
+              >
+                Voir les capteurs →
+              </Link>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[11px] text-[#94a3b8] tracking-[0.15em] uppercase mb-1" style={{ fontFamily: 'var(--font-mono)' }}>
-                Capteurs
-              </p>
-              <p className="text-4xl font-bold tracking-wider text-[#0d0f14]" style={{ fontFamily: 'var(--font-display)' }}>
-                {stats.sensorCount}
-              </p>
-              {data && stats.sensorCount > 0 && (
-                <div className="flex items-center gap-1.5 mt-2">
-                  <span className="relative flex h-2 w-2 shrink-0">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00e5a0] opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-[#00e5a0]" />
-                  </span>
-                  <span className="text-xs text-[#64748b] tracking-wider" style={{ fontFamily: 'var(--font-mono)' }}>
-                    <span className="text-[#00b07d] font-semibold">{stats.activeSensors}</span>
-                    /{stats.sensorCount} en ligne
-                  </span>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+            {/* Capteurs card */}
+            <Card className="p-8">
+              <CardContent className="flex items-start gap-5 p-0">
+                <div className="w-14 h-14 rounded-xl bg-[#00e5a0]/10 flex items-center justify-center text-[#00b07d] shrink-0">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M6.3 6.3a8 8 0 0 0 0 11.4M17.7 6.3a8 8 0 0 1 0 11.4M3.5 3.5a13 13 0 0 0 0 17M20.5 3.5a13 13 0 0 1 0 17" />
+                  </svg>
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Taux de disponibilité card */}
-        <Card className="p-8">
-          <CardContent className="flex items-start gap-5 p-0">
-            <div className="w-14 h-14 rounded-xl bg-[#00e5a0]/10 flex items-center justify-center text-[#00b07d] shrink-0">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
-                <path d="M12 6v6l4 2" />
-              </svg>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[11px] text-[#94a3b8] tracking-[0.15em] uppercase mb-1" style={{ fontFamily: 'var(--font-mono)' }}>
-                Disponibilité
-              </p>
-              <p className="text-4xl font-bold tracking-wider text-[#0d0f14]" style={{ fontFamily: 'var(--font-display)' }}>
-                {stats.uptimePercent}
-                <span className="text-xl text-[#94a3b8] ml-1">%</span>
-              </p>
-              {data && stats.sensorCount > 0 && (
-                <div className="mt-3">
-                  <div className="h-1.5 w-full rounded-full bg-[#e2e8f0] overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-700"
-                      style={{
-                        width: `${stats.uptimePercent}%`,
-                        background: stats.uptimePercent >= 80
-                          ? '#00e5a0'
-                          : stats.uptimePercent >= 50
-                          ? '#f59e0b'
-                          : '#ef4444',
-                      }}
-                    />
-                  </div>
-                  <p className="text-[10px] text-[#94a3b8] tracking-wider mt-1.5" style={{ fontFamily: 'var(--font-mono)' }}>
-                    {stats.activeSensors} actif{stats.activeSensors > 1 ? 's' : ''} · {stats.inactiveSensors} inactif{stats.inactiveSensors > 1 ? 's' : ''}
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] text-[#94a3b8] tracking-[0.15em] uppercase mb-1" style={{ fontFamily: 'var(--font-mono)' }}>
+                    Capteurs
                   </p>
+                  <p className="text-4xl font-bold tracking-wider text-[#0d0f14]" style={{ fontFamily: 'var(--font-display)' }}>
+                    {stats.sensorCount}
+                  </p>
+                  {data && stats.sensorCount > 0 && (
+                    <div className="flex items-center gap-1.5 mt-2">
+                      <span className="relative flex h-2 w-2 shrink-0">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00e5a0] opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-[#00e5a0]" />
+                      </span>
+                      <span className="text-xs text-[#64748b] tracking-wider" style={{ fontFamily: 'var(--font-mono)' }}>
+                        <span className="text-[#00b07d] font-semibold">{stats.activeSensors}</span>
+                        /{stats.sensorCount} en ligne
+                      </span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
 
-        {/* Mesures card */}
-        <Card className="p-8">
-          <CardContent className="flex items-start gap-5 p-0">
-            <div className="w-14 h-14 rounded-xl bg-[#00e5a0]/10 flex items-center justify-center text-[#00b07d] shrink-0">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-              </svg>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[11px] text-[#94a3b8] tracking-[0.15em] uppercase mb-1" style={{ fontFamily: 'var(--font-mono)' }}>
-                Mesures
-              </p>
-              <p className="text-4xl font-bold tracking-wider text-[#0d0f14]" style={{ fontFamily: 'var(--font-display)' }}>
-                {measureCount !== undefined ? formatCount(measureCount) : '—'}
-              </p>
-              {stats.mostActiveSensor && (
-                <p className="text-[10px] text-[#94a3b8] tracking-wider mt-2 truncate" style={{ fontFamily: 'var(--font-mono)' }}>
-                  Top :{' '}
-                  <Link
-                    to={`/capteurs/${stats.mostActiveSensor}`}
-                    className="text-[#00b07d] hover:underline underline-offset-2 uppercase font-semibold"
-                  >
-                    {stats.mostActiveSensor}
-                  </Link>
-                  {' '}({stats.mostActiveMeasureCount} mesures)
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Types de capteur card */}
-        <Card className="p-8 sm:col-span-2 lg:col-span-3">
-          <CardContent className="p-0">
-            <div className="flex items-start gap-5">
-              <div className="w-14 h-14 rounded-xl bg-[#00e5a0]/10 flex items-center justify-center text-[#00b07d] shrink-0">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="7" height="7" />
-                  <rect x="14" y="3" width="7" height="7" />
-                  <rect x="14" y="14" width="7" height="7" />
-                  <rect x="3" y="14" width="7" height="7" />
-                </svg>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[11px] text-[#94a3b8] tracking-[0.15em] uppercase mb-1" style={{ fontFamily: 'var(--font-mono)' }}>
-                  Types de capteur
-                </p>
-                <p className="text-4xl font-bold tracking-wider text-[#0d0f14] mb-3" style={{ fontFamily: 'var(--font-display)' }}>
-                  {stats.typeCount}
-                </p>
-                {stats.typeBreakdown.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {stats.typeBreakdown.map(({ type, count }, i) => {
-                      const palette = [
-                        'bg-[#00e5a0]/10 text-[#00b07d] border-[#00e5a0]/30',
-                        'bg-blue-50 text-blue-600 border-blue-200',
-                        'bg-violet-50 text-violet-600 border-violet-200',
-                        'bg-amber-50 text-amber-600 border-amber-200',
-                        'bg-rose-50 text-rose-600 border-rose-200',
-                        'bg-cyan-50 text-cyan-600 border-cyan-200',
-                      ]
-                      const cls = palette[i % palette.length]
-                      return (
-                        <Badge
-                          key={type}
-                          className={`border text-xs tracking-wider uppercase ${cls}`}
-                          style={{ fontFamily: 'var(--font-mono)' }}
-                        >
-                          {type} ×{count}
-                        </Badge>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Averages card */}
-        {stats.typeStats.length > 0 && (
-          <Card className="p-8 sm:col-span-2 lg:col-span-3">
-            <CardContent className="p-0">
-              <p className="text-[11px] text-[#94a3b8] tracking-[0.15em] uppercase mb-4" style={{ fontFamily: 'var(--font-mono)' }}>
-                Moyennes et dernières valeurs
-              </p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                {stats.typeStats.map(({ type, unit, avg, latest, lastTimestamp }) => {
-                  const fmt = (n: number) => n % 1 === 0 ? String(n) : n.toFixed(2)
-                  const fmtDate = (ts: string) => {
-                    const d = new Date(ts)
-                    if (isNaN(d.getTime())) return ts
-                    return d.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
-                  }
-                  return (
-                    <div key={type} className="rounded-xl border border-[#e2e8f0] p-4">
-                      <p className="text-[10px] text-[#94a3b8] tracking-[0.15em] uppercase mb-3" style={{ fontFamily: 'var(--font-mono)' }}>
-                        {type}
-                      </p>
-                      <div className="flex items-baseline gap-1.5 mb-1">
-                        <span className="text-3xl font-bold tracking-wider text-[#0d0f14]" style={{ fontFamily: 'var(--font-display)' }}>
-                          {fmt(latest)}
-                        </span>
-                        <span className="text-sm text-[#94a3b8]">{unit}</span>
+            {/* Taux de disponibilité card */}
+            <Card className="p-8">
+              <CardContent className="flex items-start gap-5 p-0">
+                <div className="w-14 h-14 rounded-xl bg-[#00e5a0]/10 flex items-center justify-center text-[#00b07d] shrink-0">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
+                    <path d="M12 6v6l4 2" />
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] text-[#94a3b8] tracking-[0.15em] uppercase mb-1" style={{ fontFamily: 'var(--font-mono)' }}>
+                    Disponibilité
+                  </p>
+                  <p className="text-4xl font-bold tracking-wider text-[#0d0f14]" style={{ fontFamily: 'var(--font-display)' }}>
+                    {stats.uptimePercent}
+                    <span className="text-xl text-[#94a3b8] ml-1">%</span>
+                  </p>
+                  {data && stats.sensorCount > 0 && (
+                    <div className="mt-3">
+                      <div className="h-1.5 w-full rounded-full bg-[#e2e8f0] overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-700"
+                          style={{
+                            width: `${stats.uptimePercent}%`,
+                            background: stats.uptimePercent >= 80
+                              ? '#00e5a0'
+                              : stats.uptimePercent >= 50
+                                ? '#f59e0b'
+                                : '#ef4444',
+                          }}
+                        />
                       </div>
-                      <p className="text-[10px] text-[#94a3b8] tracking-wider" style={{ fontFamily: 'var(--font-mono)' }}>
-                        Moyenne : <span className="text-[#64748b] font-semibold">{fmt(avg)}</span> {unit}
-                      </p>
-                      <p className="text-[10px] text-[#94a3b8] tracking-wider mt-0.5" style={{ fontFamily: 'var(--font-mono)' }}>
-                        Dernière : {fmtDate(lastTimestamp)}
+                      <p className="text-[10px] text-[#94a3b8] tracking-wider mt-1.5" style={{ fontFamily: 'var(--font-mono)' }}>
+                        {stats.activeSensors} actif{stats.activeSensors > 1 ? 's' : ''} · {stats.inactiveSensors} inactif{stats.inactiveSensors > 1 ? 's' : ''}
                       </p>
                     </div>
-                  )
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
+            {/* Mesures card */}
+            <Card className="p-8">
+              <CardContent className="flex items-start gap-5 p-0">
+                <div className="w-14 h-14 rounded-xl bg-[#00e5a0]/10 flex items-center justify-center text-[#00b07d] shrink-0">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] text-[#94a3b8] tracking-[0.15em] uppercase mb-1" style={{ fontFamily: 'var(--font-mono)' }}>
+                    Mesures
+                  </p>
+                  <p className="text-4xl font-bold tracking-wider text-[#0d0f14]" style={{ fontFamily: 'var(--font-display)' }}>
+                    {totalMeasureCount !== undefined ? formatCount(totalMeasureCount) : '—'}
+                  </p>
+                  {stats.mostActiveSensor && (
+                    <p className="text-[10px] text-[#94a3b8] tracking-wider mt-2 truncate" style={{ fontFamily: 'var(--font-mono)' }}>
+                      Top :{' '}
+                      <Link
+                        to={`/capteurs/${stats.mostActiveSensor}`}
+                        className="text-[#00b07d] hover:underline underline-offset-2 uppercase font-semibold"
+                      >
+                        {stats.mostActiveSensor}
+                      </Link>
+                      {' '}({stats.mostActiveMeasureCount} mesures récentes)
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Types de capteur card — full width on md, 3rd col on lg */}
+            <Card className="p-8 sm:col-span-2 lg:col-span-3">
+              <CardContent className="p-0">
+                <div className="flex items-start gap-5">
+                  <div className="w-14 h-14 rounded-xl bg-[#00e5a0]/10 flex items-center justify-center text-[#00b07d] shrink-0">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="3" width="7" height="7" />
+                      <rect x="14" y="3" width="7" height="7" />
+                      <rect x="14" y="14" width="7" height="7" />
+                      <rect x="3" y="14" width="7" height="7" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] text-[#94a3b8] tracking-[0.15em] uppercase mb-1" style={{ fontFamily: 'var(--font-mono)' }}>
+                      Types de capteur
+                    </p>
+                    <p className="text-4xl font-bold tracking-wider text-[#0d0f14] mb-3" style={{ fontFamily: 'var(--font-display)' }}>
+                      {stats.typeCount}
+                    </p>
+                    {stats.typeBreakdown.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {stats.typeBreakdown.map(({ type, count }, i) => {
+                          const palette = [
+                            'bg-[#00e5a0]/10 text-[#00b07d] border-[#00e5a0]/30',
+                            'bg-blue-50 text-blue-600 border-blue-200',
+                            'bg-violet-50 text-violet-600 border-violet-200',
+                            'bg-amber-50 text-amber-600 border-amber-200',
+                            'bg-rose-50 text-rose-600 border-rose-200',
+                            'bg-cyan-50 text-cyan-600 border-cyan-200',
+                          ]
+                          const cls = palette[i % palette.length]
+                          return (
+                            <Badge
+                              key={type}
+                              className={`border text-xs tracking-wider uppercase ${cls}`}
+                              style={{ fontFamily: 'var(--font-mono)' }}
+                            >
+                              {type} ×{count}
+                            </Badge>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
     </div>
   )
 }
