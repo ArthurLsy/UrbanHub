@@ -16,6 +16,7 @@ import caensup.eadl.urbanhub.repository.SensorTypeRepository;
 import caensup.eadl.urbanhub.types.measures.MeasureBase;
 import caensup.eadl.urbanhub.types.measures.MeasureFactory;
 
+import java.time.Instant;
 import java.time.OffsetDateTime;
 
 @Service
@@ -74,21 +75,26 @@ public class MeasureIngestServiceImpl implements MeasureIngestService {
                     newSensor.setSensorId(json.sensorId());
                     newSensor.setSensorType(sensorType);
                     newSensor.setStatus(true);
+                    newSensor.setLastUpdate(Instant.now());
                     newSensor.setLatitude(lat);
                     newSensor.setLongitude(lon);
 
                     return sensorRepository.save(newSensor);
                 });
 
+        
         OffsetDateTime timestamp = OffsetDateTime.ofInstant(measure.timestamp(), java.time.ZoneOffset.UTC);
         MeasureId measureId = new MeasureId(timestamp, sensor.getUuid());
 
+        sensor.setLastUpdate(Instant.now());
+        
         Measure measureEntity = new Measure();
         measureEntity.setId(measureId);
         measureEntity.setSensor(sensor);
         measureEntity.setValue(json.value().floatValue());
         measureEntity.setUnit(json.unit());
-
+        
+        sensorRepository.save(sensor);
         measureRepository.save(measureEntity);
     }
 }
