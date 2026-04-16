@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ArrowUpDown, ArrowUp, ArrowDown, X, Search } from 'lucide-react'
-import { useMeasures } from '../queries/measureQueries'
+import { useSensors } from '../queries/sensorQueries'
 import type { Sensor } from '../types'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -15,7 +15,7 @@ type SortKey = 'sensorId' | 'type' | 'status'
 type SortDir = 'asc' | 'desc'
 
 const SensorsPage = () => {
-  const { data, isLoading, isError, isFetching } = useMeasures()
+  const { data, isLoading, isError, isFetching } = useSensors()
   const [searchParams, setSearchParams] = useSearchParams()
   const typeFilter = searchParams.get('type')
 
@@ -47,23 +47,7 @@ const SensorsPage = () => {
     setCurrentPage(1)
   }, [search, typeFilter, sortKey, sortDir, pageSize])
 
-  const sensors = useMemo<Sensor[]>(() => {
-    if (!data) return []
-    const map = new Map<string, Sensor>()
-    data.forEach((m) => {
-      if (!map.has(m.sensorId)) {
-        map.set(m.sensorId, {
-          sensorId: m.sensorId,
-          latitude: m.latitude,
-          longitude: m.longitude,
-          sensorStatus: m.sensorStatus,
-          zoneId: m.zoneId,
-          sensorTypeId: m.sensorTypeId,
-        })
-      }
-    })
-    return Array.from(map.values())
-  }, [data])
+  const sensors = useMemo<Sensor[]>(() => data ?? [], [data])
 
   const filteredSensors = useMemo(() => {
     let result = [...sensors]
@@ -94,7 +78,7 @@ const SensorsPage = () => {
     })
 
     return result
-  }, [sensors, search, typeFilter, sortKey, sortDir, data])
+  }, [sensors, search, typeFilter, sortKey, sortDir])
 
   const totalPages = Math.max(1, Math.ceil(filteredSensors.length / pageSize))
   const paginatedSensors = filteredSensors.slice(

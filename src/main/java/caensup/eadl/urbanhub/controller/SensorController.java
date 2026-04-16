@@ -18,6 +18,11 @@ public class SensorController {
         this.sensorService = sensorService;
     }
 
+    @GetMapping()
+    public List<SensorDto> getAll() {
+        return sensorService.getAll();
+    }
+
     @GetMapping("/status")
     public List<SensorDto> getByStatus(@RequestParam(name = "alive", defaultValue = "true") boolean alive) {
         return sensorService.getByStatus(alive);

@@ -20,6 +20,14 @@ public class SensorService {
         this.sensorRepository = sensorRepository;
     }
 
+    @Transactional(readOnly = true)
+    public List<SensorDto> getAll() {
+        Instant cutoff = Instant.now().minus(SENSOR_ALIVE_WINDOW);
+        return sensorRepository.findAll().stream()
+                .map(s -> toDto(s, cutoff))
+                .toList();
+    }
+
     /**
      * @param alive {@code true} : capteurs avec {@code last_update} dans la fenêtre récente ;
      *              {@code false} : capteurs sans activité depuis plus d'une heure.
