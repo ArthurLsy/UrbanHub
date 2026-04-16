@@ -74,7 +74,6 @@ public class MeasureIngestServiceImpl implements MeasureIngestService {
                     Sensor newSensor = new Sensor();
                     newSensor.setSensorId(json.sensorId());
                     newSensor.setSensorType(sensorType);
-                    newSensor.setStatus(true);
                     newSensor.setLastUpdate(Instant.now());
                     newSensor.setLatitude(lat);
                     newSensor.setLongitude(lon);

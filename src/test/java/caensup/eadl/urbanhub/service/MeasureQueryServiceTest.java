@@ -141,7 +141,6 @@ class MeasureQueryServiceTest {
         sensor.setSensorId("CAP-001");
         sensor.setLatitude(49.1829);
         sensor.setLongitude(-0.3707);
-        sensor.setStatus(true);
         sensor.setZones(zones);
         sensor.setSensorType(sensorType);
 

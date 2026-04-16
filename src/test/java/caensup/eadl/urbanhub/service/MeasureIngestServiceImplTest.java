@@ -68,7 +68,7 @@ class MeasureIngestServiceImplTest {
         service.ingestMeasure(validWeatherJson("CAP-NEW"));
 
         verify(sensorTypeRepository, never()).save(any());
-        verify(sensorRepository).save(argThat(s -> "CAP-NEW".equals(s.getSensorId()) && s.getStatus()));
+        verify(sensorRepository).save(argThat(s -> "CAP-NEW".equals(s.getSensorId())));
         verify(measureRepository).save(any());
     }
 
@@ -177,7 +177,6 @@ class MeasureIngestServiceImplTest {
     private Sensor sensorWithId(String sensorId) {
         Sensor s = new Sensor();
         s.setSensorId(sensorId);
-        s.setStatus(true);
         s.setLatitude(0.0);
         s.setLongitude(0.0);
         // UUID already set by default in the entity

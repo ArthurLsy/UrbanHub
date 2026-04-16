@@ -21,4 +21,5 @@ public interface SensorRepository extends JpaRepository<Sensor, UUID> {
 
     /** Capteurs sans activité récente : {@code last_update < cutoff}. */
     List<Sensor> findByLastUpdateLessThan(Instant cutoff);
+
 }

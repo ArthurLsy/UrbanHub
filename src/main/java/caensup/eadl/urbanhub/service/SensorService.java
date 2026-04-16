@@ -30,7 +30,7 @@ public class SensorService {
         List<Sensor> sensors = alive
                 ? sensorRepository.findByLastUpdateGreaterThanEqual(cutoff)
                 : sensorRepository.findByLastUpdateLessThan(cutoff);
-        return sensors.stream().map(this::toDto).toList();
+        return sensors.stream().map(s -> toDto(s, cutoff)).toList();
     }
 
     @Transactional(readOnly = true)
@@ -47,11 +47,11 @@ public class SensorService {
         return sensorRepository.count();
     }
 
-    private SensorDto toDto(Sensor s) {
+    private SensorDto toDto(Sensor s, Instant cutoff) {
         return new SensorDto(
                 s.getUuid(),
                 s.getSensorId(),
                 s.getSensorType().getSensorTypeId(),
-                s.getStatus());
+                s.getLastUpdate() != null && !s.getLastUpdate().isBefore(cutoff));
     }
 }

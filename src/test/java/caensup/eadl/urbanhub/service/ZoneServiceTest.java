@@ -294,7 +294,6 @@ class ZoneServiceTest {
         sensor.setUuid(UUID.randomUUID());
         sensor.setSensorId(sensorId);
         sensor.setSensorType(type);
-        sensor.setStatus(true);
         sensor.setLatitude(49.0);
         sensor.setLongitude(-0.4);
         return sensor;

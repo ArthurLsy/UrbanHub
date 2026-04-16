@@ -39,9 +39,6 @@ public class Sensor {
     @Column(name = "longitude", nullable = false)
     private Double longitude;
 
-    @Column(name = "status", nullable = false)
-    private Boolean status;
-
     @ManyToMany(mappedBy = "sensors")
     private Set<Zone> zones = new HashSet<>();
 
