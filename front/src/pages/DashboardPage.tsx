@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useMeasures } from '../queries/measureQueries'
+import { useSensorStatusCount } from '../queries/sensorQueries'
 import { Card, CardContent } from '@/components/ui/card'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { Badge } from '@/components/ui/badge'
@@ -20,6 +21,8 @@ const formatCount = (n: number): string => {
 
 const DashboardPage = () => {
   const { data } = useMeasures()
+  const { data: activeSensorCount } = useSensorStatusCount(true)
+  const { data: inactiveSensorCount } = useSensorStatusCount(false)
 
   const stats = useMemo(() => {
     if (!data || data.length === 0) {
@@ -106,7 +109,21 @@ const DashboardPage = () => {
     }
   }, [data])
 
-  const showOfflineAlert = data && stats.inactiveSensors > 0
+  const availability = useMemo(() => {
+    const activeSensors = activeSensorCount ?? stats.activeSensors
+    const inactiveSensors = inactiveSensorCount ?? stats.inactiveSensors
+    const sensorCount = activeSensors + inactiveSensors
+    const uptimePercent = sensorCount > 0 ? Math.round((activeSensors / sensorCount) * 100) : 0
+
+    return {
+      activeSensors,
+      inactiveSensors,
+      sensorCount,
+      uptimePercent,
+    }
+  }, [activeSensorCount, inactiveSensorCount, stats.activeSensors, stats.inactiveSensors])
+
+  const showOfflineAlert = availability.inactiveSensors > 0
 
   return (
     <div>
@@ -126,7 +143,7 @@ const DashboardPage = () => {
         <div className="mb-6 flex items-center gap-3 px-5 py-4 rounded-xl border border-amber-200 bg-amber-50">
           <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
           <p className="text-sm text-amber-700 tracking-wide" style={{ fontFamily: 'var(--font-mono)' }}>
-            <span className="font-semibold">{stats.inactiveSensors} capteur{stats.inactiveSensors > 1 ? 's' : ''} hors-ligne</span>
+            <span className="font-semibold">{availability.inactiveSensors} capteur{availability.inactiveSensors > 1 ? 's' : ''} hors-ligne</span>
             {' '}— vérifiez l'état du réseau ou des dispositifs.
           </p>
           <Link
@@ -156,9 +173,9 @@ const DashboardPage = () => {
                 Capteurs
               </p>
               <p className="text-4xl font-bold tracking-wider text-[#0d0f14]" style={{ fontFamily: 'var(--font-display)' }}>
-                {stats.sensorCount}
+                {availability.sensorCount}
               </p>
-              {data && stats.sensorCount > 0 && (
+              {availability.sensorCount > 0 && (
                 <div className="flex items-center gap-1.5 mt-2">
                   {/* Pulsing dot */}
                   <span className="relative flex h-2 w-2 shrink-0">
@@ -166,8 +183,8 @@ const DashboardPage = () => {
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-[#00e5a0]" />
                   </span>
                   <span className="text-xs text-[#64748b] tracking-wider" style={{ fontFamily: 'var(--font-mono)' }}>
-                    <span className="text-[#00b07d] font-semibold">{stats.activeSensors}</span>
-                    /{stats.sensorCount} en ligne
+                    <span className="text-[#00b07d] font-semibold">{availability.activeSensors}</span>
+                    /{availability.sensorCount} en ligne
                   </span>
                 </div>
               )}
@@ -189,28 +206,28 @@ const DashboardPage = () => {
                 Disponibilité
               </p>
               <p className="text-4xl font-bold tracking-wider text-[#0d0f14]" style={{ fontFamily: 'var(--font-display)' }}>
-                {stats.uptimePercent}
+                {availability.uptimePercent}
                 <span className="text-xl text-[#94a3b8] ml-1">%</span>
               </p>
-              {data && stats.sensorCount > 0 && (
+              {availability.sensorCount > 0 && (
                 <div className="mt-3">
                   <div className="h-1.5 w-full rounded-full bg-[#e2e8f0] overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-700"
                       style={{
-                        width: `${stats.uptimePercent}%`,
-                        background: stats.uptimePercent === 100
+                        width: `${availability.uptimePercent}%`,
+                        background: availability.uptimePercent === 100
                           ? '#00e5a0'
-                          : stats.uptimePercent >= 80
+                          : availability.uptimePercent >= 80
                           ? '#00e5a0'
-                          : stats.uptimePercent >= 50
+                          : availability.uptimePercent >= 50
                           ? '#f59e0b'
                           : '#ef4444',
                       }}
                     />
                   </div>
                   <p className="text-[10px] text-[#94a3b8] tracking-wider mt-1.5" style={{ fontFamily: 'var(--font-mono)' }}>
-                    {stats.activeSensors} actif{stats.activeSensors > 1 ? 's' : ''} · {stats.inactiveSensors} inactif{stats.inactiveSensors > 1 ? 's' : ''}
+                    {availability.activeSensors} actif{availability.activeSensors > 1 ? 's' : ''} · {availability.inactiveSensors} inactif{availability.inactiveSensors > 1 ? 's' : ''}
                   </p>
                 </div>
               )}
