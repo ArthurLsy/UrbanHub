@@ -160,6 +160,16 @@ data "aws_iam_policy_document" "team" {
   }
 
   statement {
+    sid    = "DenyTerraformStateBucket"
+    effect = "Deny"
+    actions = ["s3:*"]
+    resources = [
+      "arn:aws:s3:::urbanhub-terraform-state-*",
+      "arn:aws:s3:::urbanhub-terraform-state-*/*",
+    ]
+  }
+
+  statement {
     sid    = "ReadOnlyObservability"
     effect = "Allow"
     actions = [
