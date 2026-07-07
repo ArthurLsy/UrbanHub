@@ -9,9 +9,9 @@ automatisée et sécurisée**.
 - **Outil** : Terraform (≥ 1.9), AWS CLI v2
 - **Compte cible** : `627403012708`
 
-Chaque module possède son propre `README.md` détaillé (choix techniques,
-justifications, analyse coûts). Ce fichier-ci donne la **vue d'ensemble** et la
-**procédure de déploiement**.
+Les **choix techniques et leurs justifications** (architecture, IAM, analyse
+coûts) sont centralisés dans [`../doc.md`](../doc.md). Ce fichier-ci donne la
+**vue d'ensemble** et la **procédure de déploiement**.
 
 ## 1. Présentation
 
@@ -62,10 +62,8 @@ infra/terraform/
 - **Simplicité assumée** : une seule instance en `docker compose`, pas
   d'orchestrateur, adapté à une équipe au DevOps limité.
 
-Détails et justifications complètes :
-- [`bootstrap/`](terraform/bootstrap/) — bucket de state
-- [`iam/README.md`](terraform/iam/README.md) — identités, accès, OIDC
-- [`app/README.md`](terraform/app/README.md) — architecture, réseau, **analyse coûts**
+Détails et justifications complètes (IAM, architecture, **analyse coûts**) :
+[`../doc.md`](../doc.md).
 
 ## 2. Prérequis
 
@@ -77,7 +75,7 @@ Détails et justifications complètes :
 | Compte AWS | ID connu (ici `627403012708`) |
 
 > Les credentials de bootstrap sont volontairement gardés à part (compte
-> « break-glass »), non gérés par Terraform — cf. `iam/README.md`.
+> « break-glass »), non gérés par Terraform — cf. [`../doc.md`](../doc.md).
 
 ## 3. Procédure de déploiement
 
@@ -161,8 +159,8 @@ cd ../iam               && terraform destroy    # puis l'IAM
 
 - **GitHub vs GitLab** : le sujet attend un rendu GitLab ; le développement est
   actuellement sur GitHub et l'OIDC est configuré pour GitHub Actions. À
-  reprendre avant le rendu final (cf. `iam/README.md`).
+  reprendre avant le rendu final (cf. [`../doc.md`](../doc.md)).
 - **HTTP seulement** : pas de nom de domaine → pas de certificat ACM. Passage à
-  HTTPS documenté comme piste d'amélioration (cf. `app/README.md`).
+  HTTPS documenté comme piste d'amélioration (cf. [`../doc.md`](../doc.md)).
 - **State = données sensibles** : le state `app/` contient le mot de passe DB.
   Le bucket est chiffré et son accès est refusé au groupe `urbanhub-team`.
