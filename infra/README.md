@@ -154,13 +154,3 @@ cd ../iam               && terraform destroy    # puis l'IAM
 # bootstrap : le bucket de state a prevent_destroy ; le vider/supprimer
 # manuellement si nécessaire.
 ```
-
-## 6. Points d'attention
-
-- **GitHub vs GitLab** : le sujet attend un rendu GitLab ; le développement est
-  actuellement sur GitHub et l'OIDC est configuré pour GitHub Actions. À
-  reprendre avant le rendu final (cf. [`../doc.md`](../doc.md)).
-- **HTTP seulement** : pas de nom de domaine → pas de certificat ACM. Passage à
-  HTTPS documenté comme piste d'amélioration (cf. [`../doc.md`](../doc.md)).
-- **State = données sensibles** : le state `app/` contient le mot de passe DB.
-  Le bucket est chiffré et son accès est refusé au groupe `urbanhub-team`.

@@ -1,0 +1,27 @@
+# Image de production : build multi-stage, artefact final = un jar exécutable
+# dans un JRE minimal (pas le JDK complet). Séparé du Dockerfile de dev, qui
+# lui reste utilisé tel quel par docker-compose.yml (bootRun + hot-reload).
+
+FROM eclipse-temurin:21-jdk-alpine AS build
+WORKDIR /app
+
+COPY gradlew settings.gradle build.gradle ./
+COPY gradle gradle
+RUN chmod +x gradlew
+
+COPY src ./src
+
+# Tests déjà exécutés dans une étape CI dédiée en amont (voir
+# .github/workflows/ci-cd.yml) : les rejouer ici ne ferait que ralentir le
+# build de l'image sans apporter d'information supplémentaire.
+RUN ./gradlew bootJar --no-daemon -x test
+
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+
+RUN addgroup -S spring && adduser -S spring -G spring
+COPY --from=build /app/build/libs/*.jar app.jar
+USER spring:spring
+
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

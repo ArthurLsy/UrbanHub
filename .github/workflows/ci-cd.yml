@@ -1,0 +1,274 @@
+name: CI/CD
+
+# Construction, tests, qualité, sécurité systématiques sur toute branche/PR.
+# Publication de l'image et déploiement réservés à la branche main (même
+# logique que l'ancien .gitlab-ci.yml : "only: main" pour le déploiement).
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Empêche deux déploiements concurrents de se marcher dessus sur la même
+# instance (ex: deux push rapprochés sur main).
+concurrency:
+  group: urbanhub-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+# Permissions minimales par défaut ; id-token: write n'est accordé qu'aux
+# jobs qui en ont réellement besoin (package, deploy), pas à tout le workflow.
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: eu-west-3
+  # Pas un secret : c'est un identifiant de rôle IAM, pas une credential.
+  # La confiance vient de la condition OIDC (repo + branche), pas du secret.
+  AWS_ROLE_ARN: arn:aws:iam::627403012708:role/urbanhub/role-urbanhub-ci
+  ECR_REPOSITORY: urbanhub-backend
+
+jobs:
+  # ---------------------------------------------------------------------
+  # 1. Construction : compile l'application, garantit la reproductibilité
+  #    du build. Étape séparée du "test" pour un pipeline lisible en
+  #    stages, même si gradle recompile aussi côté "test" (léger doublon
+  #    assumé pour la clarté du séquençage, cf. doc.md).
+  # ---------------------------------------------------------------------
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Build
+        run: ./gradlew assemble --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backend-jar
+          path: build/libs/*.jar
+          retention-days: 7
+
+  # ---------------------------------------------------------------------
+  # 2. Tests : résultats exploitables et tracables dans l'onglet Actions
+  #    (résumé + annotations), pas seulement un exit code.
+  # ---------------------------------------------------------------------
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Tests + couverture
+        run: ./gradlew test jacocoTestReport --no-daemon
+
+      - name: Publier les résultats de tests
+        uses: mikepenz/action-junit-report@v4
+        if: always()
+        with:
+          report_paths: "build/test-results/test/TEST-*.xml"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-and-coverage-reports
+          path: |
+            build/reports/tests/test/
+            build/reports/jacoco/
+          retention-days: 7
+
+  # ---------------------------------------------------------------------
+  # 3. Qualité : SonarQube auto-hébergé (URL/token fournis par le
+  #    dépôt). Le quality gate est déjà configuré à "wait" dans
+  #    build.gradle : la tâche gradle échoue elle-même si le gate est KO,
+  #    ce qui fait échouer ce job et bloque le déploiement en aval.
+  #    Prérequis : secrets SONAR_HOST_URL et SONAR_TOKEN (voir doc.md).
+  # ---------------------------------------------------------------------
+  quality:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # historique complet requis par l'analyse Sonar (blame, new code period)
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: sonar-cache-${{ runner.os }}
+
+      - name: Analyse SonarQube
+        run: |
+          ./gradlew sonarqube --no-daemon \
+            -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
+            -Dsonar.token=${{ secrets.SONAR_TOKEN }}
+
+  # ---------------------------------------------------------------------
+  # 4. Sécurité : scan des dépendances (CVE connues) avec Trivy. Résultats
+  #    toujours publiés dans l'onglet Security (même si le job échoue
+  #    ensuite), le pipeline est bloqué uniquement sur du CRITICAL.
+  #    Indépendant de build/test : tourne en parallèle, ne ralentit pas
+  #    le pipeline.
+  # ---------------------------------------------------------------------
+  security:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # requis pour publier le SARIF dans l'onglet Security
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trivy (rapport complet, non bloquant)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: "."
+          format: sarif
+          output: trivy-results.sarif
+          severity: "CRITICAL,HIGH"
+          exit-code: "0"
+
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+
+      - name: Trivy (gate bloquant sur CRITICAL)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: "."
+          severity: "CRITICAL"
+          exit-code: "1"
+
+  # ---------------------------------------------------------------------
+  # 5. Packaging : construit l'artefact déployable (image Docker, via
+  #    Dockerfile.prod) et le publie sur ECR. Authentification AWS par
+  #    OIDC : aucune clé statique en secret GitHub.
+  #    Deux tags poussés sur la même image : ":latest" (mobile, utilisé
+  #    au déploiement) et ":<git-sha>" (fixe, traçabilité/rollback).
+  # ---------------------------------------------------------------------
+  package:
+    runs-on: ubuntu-latest
+    needs: [test, quality, security]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      image_tag: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr-login
+
+      - name: Build de l'image de production
+        run: |
+          docker build -f Dockerfile.prod \
+            -t "${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}" \
+            -t "${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest" \
+            .
+
+      - name: Scan de l'image avant publication (gate bloquant sur CRITICAL)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: image
+          image-ref: "${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
+          severity: "CRITICAL"
+          exit-code: "1"
+
+      - name: Publication sur ECR
+        run: |
+          docker push "${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
+          docker push "${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest"
+          echo "### Image publiée" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------
+  # 6. Déploiement : déclenché via SSM SendCommand (pas de SSH). L'instance
+  #    cible est retrouvée dynamiquement par tag (pas d'ID en dur, qui
+  #    changerait à chaque recréation Terraform de l'infra).
+  # ---------------------------------------------------------------------
+  deploy:
+    runs-on: ubuntu-latest
+    needs: package
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Déploiement via SSM
+        run: |
+          set -euo pipefail
+
+          INSTANCE_ID=$(aws ec2 describe-instances \
+            --filters "Name=tag:Project,Values=urbanhub" "Name=instance-state-name,Values=running" \
+            --query "Reservations[0].Instances[0].InstanceId" --output text)
+
+          if [ "$INSTANCE_ID" = "None" ] || [ -z "$INSTANCE_ID" ]; then
+            echo "::error::Aucune instance EC2 running taguée Project=urbanhub trouvée. L'infra a-t-elle été appliquée (infra/terraform/app) ?"
+            exit 1
+          fi
+          echo "Instance cible : $INSTANCE_ID"
+
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --parameters 'commands=["/opt/urbanhub/redeploy.sh"]' \
+            --query "Command.CommandId" --output text)
+          echo "Commande SSM : $COMMAND_ID"
+
+          # Attente active du résultat (timeout ~2 minutes) : le job doit
+          # échouer si le redéploiement échoue, pas juste "avoir envoyé la commande".
+          for i in $(seq 1 24); do
+            STATUS=$(aws ssm get-command-invocation \
+              --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" \
+              --query "Status" --output text 2>/dev/null || echo "Pending")
+            echo "Statut ($i/24) : $STATUS"
+            case "$STATUS" in
+              Success) break ;;
+              Failed|Cancelled|TimedOut)
+                aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" \
+                  --query "StandardErrorContent" --output text
+                echo "::error::Redéploiement échoué (statut SSM: $STATUS)"
+                exit 1
+                ;;
+            esac
+            sleep 5
+          done
+
+          if [ "$STATUS" != "Success" ]; then
+            echo "::error::Timeout en attendant la fin du redéploiement (dernier statut: $STATUS)"
+            exit 1
+          fi
+
+          echo "### Déploiement réussi" >> "$GITHUB_STEP_SUMMARY"
+          echo "Instance : \`$INSTANCE_ID\` — Commande SSM : \`$COMMAND_ID\`" >> "$GITHUB_STEP_SUMMARY"

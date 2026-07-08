@@ -17,9 +17,9 @@ l'ensemble de l'épreuve. Il couvre les 4 missions ; chaque section indique son
 
 | Mission | Périmètre | État |
 |---|---|---|
-| 1 — Infrastructure Cloud & automatisation (EC04-1) | VPC, EC2, ALB, ECR, IAM, secrets, IaC | ✅ Réalisée |
+| 1 — Infrastructure Cloud & automatisation (EC04-1) | VPC, EC2, ALB, ECR, IAM, secrets, IaC | ✅ Réalisée (infra détruite entre les sessions pour maîtriser le coût — le code est prêt, à ré-appliquer avant démo) |
 | 2 — Sécurisation (EC04-2) | Risques, durcissement, supervision | 🟡 Partielle (mesures déjà intégrées) |
-| 3 — Pipeline CI/CD (EC03-1) | build/test/qualité/sécurité/déploiement | ⬜ À faire |
+| 3 — Pipeline CI/CD (EC03-1) | build/test/qualité/sécurité/déploiement | ✅ Workflow écrit, pas encore exécuté en conditions réelles (infra à ré-appliquer) |
 | 4 — Documentation technique du pipeline (EC03-2) | doc du pipeline | ⬜ À faire |
 
 ---
@@ -196,6 +196,23 @@ TimescaleDB cohabitent sur la même machine — 1 Go serait à risque d'OOM. Les
 sont « burstable », adaptés à des pointes ponctuelles. Si l'ingestion MQTT
 devient continue : passer à une famille `m` ou séparer la base.
 
+### 1.6bis Corrections apportées en préparant la Mission 3
+
+En construisant le pipeline CI/CD, deux choix de la Mission 1 se sont révélés
+incompatibles avec un déploiement continu — corrigés avant d'écrire le workflow :
+
+- **ECR `IMMUTABLE` → `MUTABLE`** (`infra/terraform/app/ecr.tf`) : un repo
+  ECR `IMMUTABLE` interdit de re-pousser un tag déjà existant. Le déploiement
+  pull `:latest`, qui doit justement être réécrit à chaque build : les deux
+  étaient incompatibles (le tout premier push aurait réussi, tous les
+  suivants auraient échoué). Passé en `MUTABLE`, avec double tag `:latest` +
+  `:<git-sha>` pour conserver une traçabilité par build malgré tout.
+- **`role-urbanhub-ci` : ajout de `ec2:DescribeInstances`**
+  (`infra/terraform/iam/iam-role-ci.tf`) : nécessaire pour que le job
+  `deploy` retrouve l'instance cible par tag plutôt que par un ID en dur.
+  Action de lecture seule, `Resource: "*"` (ne supporte pas le scoping —
+  cohérent avec le reste des permissions "descriptives" déjà accordées ailleurs).
+
 ### 1.7 Vérifications effectuées (pas seulement « sur le papier »)
 - IAM validé avec `aws iam simulate-principal-policy` : le rôle CI ne peut pas
   créer d'utilisateur IAM (`implicitDeny`), peut pousser sur `urbanhub-backend`
@@ -230,13 +247,116 @@ dépendances ; passage HTTPS. *(Section à compléter au fil de l'avancement.)*
 
 ---
 
-## Mission 3 — Pipeline CI/CD (EC03-1) ⬜
+## Mission 3 — Pipeline CI/CD (EC03-1) ✅ (workflow écrit, non encore exécuté en réel)
 
-*À construire.* Cible : build reproductible → tests → qualité (SonarQube) →
-scan sécurité → image Docker → push ECR → déploiement via SSM. L'infra est
-**déjà prête** à l'accueillir : rôle OIDC `role-urbanhub-ci`, dépôt ECR
-`urbanhub-backend`, déclenchement de déploiement par `ssm:SendCommand`.
-*(Section à rédiger lors de la réalisation.)*
+Workflow : [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml).
+
+### 3.1 Pourquoi GitHub Actions et pas GitLab CI
+
+Le sujet attend un rendu GitLab, mais le développement a lieu sur GitHub
+(`ArthurLsy/UrbanHub`) — cf. la réserve déjà notée en Mission 1. Le pipeline a
+donc été construit pour **GitHub Actions**, en reprenant la structure et la
+logique de l'ancien `.gitlab-ci.yml` (mêmes 4 grandes étapes : build, test,
+qualité, déploiement), adaptée aux mécanismes GitHub (OIDC natif, artefacts,
+Security tab). *À reprendre pour GitLab CI avant le rendu final si le dépôt
+bascule — la logique métier ne change pas, seule la syntaxe et l'auth OIDC
+changent (issuer `gitlab.com` au lieu de `token.actions.githubusercontent.com`).*
+
+### 3.2 Découpage en 6 jobs
+
+| Job | Rôle | Dépend de | Sur quels événements |
+|---|---|---|---|
+| `build` | `./gradlew assemble` — reproductibilité du build | — | push + PR sur main |
+| `test` | `./gradlew test jacocoTestReport`, résultats publiés en annotations | `build` | push + PR sur main |
+| `quality` | Analyse SonarQube, quality gate bloquant | `test` | push + PR sur main |
+| `security` | Scan de dépendances Trivy (SARIF + gate CRITICAL) | — (parallèle) | push + PR sur main |
+| `package` | Build image Docker (`Dockerfile.prod`), scan, push ECR | `test`, `quality`, `security` | **push sur main uniquement** |
+| `deploy` | Déclenchement du redéploiement via SSM | `package` | **push sur main uniquement** |
+
+Le séquençage reproduit celui de l'ancien pipeline (build → test → qualité →
+déploiement), en ajoutant un job `security` dédié (le sujet le demande
+explicitement, l'ancien pipeline n'en avait pas) et un job `package` distinct
+du déploiement (produire l'artefact et le déployer sont deux responsabilités
+différentes, avec des échecs de nature différente).
+
+`package` et `deploy` ne tournent que sur push vers `main` : sur une pull
+request, le code est construit, testé, analysé et scanné, mais aucune image
+n'est publiée ni déployée — exactement la même logique que `rules: if
+$CI_COMMIT_BRANCH == 'main'` / `only: main` de l'ancien `.gitlab-ci.yml`.
+
+### 3.3 Authentification AWS : OIDC, pas de secret statique
+
+`package` et `deploy` assument `role-urbanhub-ci` (créé en Mission 1) via
+`aws-actions/configure-aws-credentials`. Aucun `AWS_ACCESS_KEY_ID` /
+`AWS_SECRET_ACCESS_KEY` en secret GitHub : la confiance vient de la condition
+OIDC (dépôt + branche `main`), pas d'une clé qui pourrait fuiter. Seuls ces
+deux jobs reçoivent la permission `id-token: write` — le reste du workflow
+(`build`, `test`, `quality`, `security`) n'a aucun accès AWS, cohérent avec le
+principe de moindre privilège déjà appliqué à l'IAM.
+
+### 3.4 Artefact déployable : `Dockerfile.prod`
+
+Le `Dockerfile` existant ne produit **pas** d'artefact exécutable : il sert
+uniquement au dev local, où `docker-compose.yml` lance `./gradlew bootRun`
+(hot-reload). Pour la CI, un `Dockerfile.prod` dédié a été ajouté :
+build multi-stage (`bootJar` dans un stage JDK, puis copie du jar dans un
+stage **JRE** minimal), utilisateur non-root, `ENTRYPOINT` explicite. Séparer
+les deux Dockerfile évite de complexifier le chemin de dev pour satisfaire un
+besoin de prod, et inversement.
+
+Chaque build pousse **deux tags** sur la même image : `:latest` (mobile,
+utilisé par le déploiement) et `:<git-sha>` (fixe, traçabilité/rollback). Ce
+choix a nécessité de revenir sur une décision de la Mission 1 : le dépôt ECR
+avait été créé en `IMMUTABLE`, ce qui aurait interdit de re-pousser `:latest`
+à chaque build — corrigé en `MUTABLE` (cf. Mission 1, § 1.6bis ci-dessous).
+
+### 3.5 Sécurité (DevSecOps) dans le pipeline
+
+- **Scan de dépendances** (job `security`, Trivy `fs`) : rapport complet
+  toujours publié dans l'onglet *Security* du repo (SARIF), même si le job
+  échoue ensuite ; un second passage, bloquant uniquement sur `CRITICAL`,
+  fait échouer le pipeline. Sévérité `HIGH` remontée mais non bloquante — un
+  `HIGH` mérite d'être vu, pas nécessairement d'arrêter tout déploiement pour
+  une équipe qui débute en DevSecOps (éviter le pipeline "qui bloque tout le
+  temps" que plus personne ne regarde).
+- **Scan de l'image** (job `package`, Trivy `image`) : même logique, sur
+  l'image buildée juste avant de la pousser sur ECR — double contrôle avec le
+  scan `scan_on_push` déjà configuré sur le repo ECR (Mission 1), qui lui agit
+  après coup, côté registre.
+- **Quality gate Sonar bloquant** : `sonar.qualitygate.wait=true` (déjà dans
+  `build.gradle`) fait échouer la tâche Gradle — donc le job — si le gate est
+  rouge, ce qui bloque `package`/`deploy` en aval.
+
+### 3.6 Déploiement sans SSH, instance retrouvée dynamiquement
+
+Le job `deploy` ne connaît **aucun ID d'instance en dur** : il interroge
+`ec2:DescribeInstances` (tag `Project=urbanhub`, état `running`) pour trouver
+sa cible, puis déclenche `/opt/urbanhub/redeploy.sh` via `ssm:SendCommand`
+(script créé par le `user-data` Terraform de la Mission 1, cf.
+`infra/terraform/app/templates/user_data.sh.tpl`). Ce choix rend le pipeline
+résilient à une recréation de l'instance (nouvel ID) sans toucher au workflow.
+Le job **attend activement** le résultat de la commande SSM (jusqu'à 2 min) et
+échoue explicitement si le redéploiement échoue côté instance — pas de faux
+positif "commande envoyée = déploiement réussi".
+
+### 3.7 Prérequis (secrets et variables GitHub)
+
+| Nom | Type | Valeur |
+|---|---|---|
+| `SONAR_HOST_URL` | Secret | URL de l'instance SonarQube auto-hébergée (fournie séparément) |
+| `SONAR_TOKEN` | Secret | Token d'analyse Sonar |
+
+`AWS_ROLE_ARN` n'est **pas** un secret (c'est un identifiant, pas une
+credential) : il est en dur dans le workflow (`env:`), assumable uniquement
+depuis ce dépôt et cette branche grâce à la condition OIDC côté AWS.
+
+### 3.8 Point de vigilance : infra détruite entre les sessions
+
+L'infra AWS (modules `iam` et `app`) a été détruite volontairement après la
+Mission 1 pour ne pas payer pendant les périodes d'inactivité. Le pipeline a
+donc été écrit et relu, mais **pas encore exécuté en conditions réelles** — un
+`terraform apply` (iam puis app) est nécessaire avant le premier run réussi de
+`package`/`deploy`. À faire avant la démonstration finale.
 
 ---
 

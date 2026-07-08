@@ -51,6 +51,16 @@ data "aws_iam_policy_document" "ci_permissions" {
     resources = ["arn:aws:ecr:${var.aws_region}:${var.account_id}:repository/urbanhub-backend"]
   }
 
+  # Le job "deploy" du pipeline retrouve l'instance cible dynamiquement par
+  # tag (pas d'ID d'instance codé en dur dans le workflow, qui changerait à
+  # chaque recreation Terraform).
+  statement {
+    sid       = "FindTargetInstance"
+    effect    = "Allow"
+    actions   = ["ec2:DescribeInstances"]
+    resources = ["*"] # action de lecture seule, ne supporte pas le scoping par ressource
+  }
+
   statement {
     sid    = "TriggerDeployViaSsm"
     effect = "Allow"

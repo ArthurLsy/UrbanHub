@@ -62,5 +62,22 @@ COMPOSE
 
 sed -i "s|BACKEND_IMAGE_PLACEHOLDER|${ecr_repository_url}:latest|" docker-compose.yml
 
-docker compose pull
-docker compose up -d
+# Point d'entrée unique pour redéployer le backend, appelé :
+# - à la fin de ce script (premier démarrage, best-effort : peut ne pas
+#   encore exister dans ECR si aucun build CI n'a encore eu lieu) ;
+# - par le pipeline CI via SSM SendCommand à chaque nouveau build (voir
+#   .github/workflows/ci-cd.yml, job "deploy").
+cat > /opt/urbanhub/redeploy.sh <<REDEPLOY
+#!/bin/bash
+set -euxo pipefail
+cd /opt/urbanhub
+aws ecr get-login-password --region ${aws_region} | docker login --username AWS --password-stdin ${ecr_registry}
+docker compose pull backend
+docker compose up -d backend
+REDEPLOY
+chmod +x /opt/urbanhub/redeploy.sh
+
+# La base démarre toujours, même si aucune image backend n'existe encore
+# dans ECR (cas du tout premier boot, avant le premier déploiement CI).
+docker compose up -d db
+/opt/urbanhub/redeploy.sh || echo "Premier démarrage : image backend pas encore disponible dans ECR, redéploiement via CI attendu."

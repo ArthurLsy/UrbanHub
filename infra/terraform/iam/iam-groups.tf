@@ -58,8 +58,8 @@ data "aws_iam_policy_document" "admin" {
   }
 
   statement {
-    sid    = "S3ManageProjectBuckets"
-    effect = "Allow"
+    sid     = "S3ManageProjectBuckets"
+    effect  = "Allow"
     actions = ["s3:*"]
     resources = [
       "arn:aws:s3:::urbanhub-*",
@@ -160,8 +160,8 @@ data "aws_iam_policy_document" "team" {
   }
 
   statement {
-    sid    = "DenyTerraformStateBucket"
-    effect = "Deny"
+    sid     = "DenyTerraformStateBucket"
+    effect  = "Deny"
     actions = ["s3:*"]
     resources = [
       "arn:aws:s3:::urbanhub-terraform-state-*",
