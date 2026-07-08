@@ -501,13 +501,69 @@ signifie concrètement :
 
 ## Retour d'expérience sur l'usage des outils d'assistance (IA)
 
-- **Apports** : accélération de l'écriture du Terraform et des policies IAM
-  (syntaxe, ARN, conditions), et surtout aide à **expliciter les compromis**
-  (NAT vs SG, EC2 vs ECS, RDS vs conteneur) plutôt qu'à produire du code brut.
-- **Limites** : l'assistant ne connaît pas le contexte implicite (budget réel, périmètre attendu) — chaque décision structurante a dû
-  être tranchée par moi, pas déléguée. Quelques détails techniques ont nécessité
-  correction (descriptions de Security Group refusant les accents/apostrophes).
-- **Posture adoptée** : validation systématique avant tout `apply` sur le compte
-  réel, relecture des plans Terraform, et vérification effective du résultat
-  (simulation IAM, tests réseau) plutôt que confiance aveugle. Le code n'a été
-  retenu que quand j'en comprenais la justification.
+J'ai utilisé un assistant IA (Claude, en ligne de commande avec accès direct
+au terminal, à AWS et au dépôt Git) tout au long de l'épreuve, en gardant la
+main sur chaque décision structurante et chaque application réelle.
+
+### Apports
+
+- **Vitesse d'écriture** sur le code répétitif ou syntaxiquement dense :
+  policies IAM (`aws_iam_policy_document`, conditions par tag/ARN), workflow
+  GitHub Actions, templates Terraform. Ce qui aurait pris du temps à taper et
+  déboguer à la main est allé plus vite avec une relecture attentive plutôt
+  qu'une écriture ligne à ligne.
+- **Explicitation des compromis** plutôt que du code brut : à chaque choix
+  d'architecture (EC2 vs ECS, RDS vs conteneur, NAT Gateway vs Security Group
+  seul, ECR `MUTABLE` vs `IMMUTABLE`), l'assistant a systématiquement présenté
+  l'alternative écartée et pourquoi — ce qui a servi directement à rédiger les
+  justifications de ce document plutôt que de les reconstruire après coup.
+- **Détection de bugs concrets, pas seulement de code qui "a l'air correct"** :
+  l'option Docker `awslogs-stream-prefix` (valide en ECS, pas sur le driver
+  `awslogs` standalone) qui empêchait la base de démarrer ; une période
+  d'alarme CloudWatch incompatible avec le monitoring basique (5 min) de
+  l'instance ; un `Dockerfile` qui ne produisait aucun artefact exécutable ;
+  un repo ECR `IMMUTABLE` incompatible avec un déploiement continu sur
+  `:latest`. Ces bugs n'ont pas été trouvés en relisant le code, mais en
+  vérifiant le résultat réel après coup (logs CloudWatch, `docker ps`,
+  `dependencyInsight`) — l'assistant a proposé cette vérification plutôt que
+  de s'arrêter à un `terraform apply` sans erreur.
+- **Audit de sécurité applicatif, pas seulement infra** : l'absence totale
+  d'authentification sur l'API et le CORS grand ouvert (§ 2.4) ont été trouvés
+  en lisant le code des contrôleurs et `WebConfig.java`, pas en suivant une
+  checklist infra.
+
+### Limites rencontrées
+
+- **Aucune connaissance du contexte implicite** : budget réel, plateforme Git
+  effectivement utilisée (établie en cours de route, pas au début), état
+  réel du compte AWS. À plusieurs reprises l'infra a été recréée ou détruite
+  entre deux sessions sans que l'assistant en soit informé à l'avance — il a
+  fallu comparer l'état du state Terraform à la réalité AWS pour s'en rendre
+  compte, plutôt que de supposer que rien n'avait changé.
+- **Les premières propositions de correctif ne sont pas toujours suffisantes
+  du premier coup** : la remontée de version Spring Boot (`4.0.4` → `4.0.6`)
+  proposée pour corriger les CVE Tomcat ne les a corrigées qu'à moitié — le
+  BOM Spring Boot ne montait Tomcat qu'à `11.0.21`, un cran sous le correctif
+  réel (`11.0.22`). Ça n'a été visible qu'en vérifiant la résolution de
+  dépendance (`./gradlew dependencyInsight`) après coup, pas en faisant
+  confiance à la version affichée par Trivy dans son message d'erreur.
+- **Sur-explication par défaut** : la documentation produite initialement
+  contenait beaucoup de contenu que je n'avais pas demandé. Il a fallu
+  plusieurs passes de correction explicites pour ramener le document à ce
+  qui était réellement utile à un lecteur technique.
+
+### Posture adoptée
+
+- Aucune application Terraform sur le compte AWS réel sans relecture du plan
+  et confirmation explicite au préalable.
+- Vérification systématique du résultat après coup plutôt que confiance dans
+  un exit code : simulation de policies IAM (`aws iam
+  simulate-principal-policy`), tests réseau depuis l'extérieur (`nc`,
+  `curl`), lecture des logs CloudWatch, vérification de l'état des conteneurs
+  via SSM.
+- Le code et la documentation générés n'ont été conservés que lorsque j'en
+  comprenais la justification — plusieurs sections ont été réécrites ou
+  supprimées après relecture parce qu'elles ne correspondaient pas à ce que
+  je voulais documenter ou à la façon dont je voulais que ce soit écrit.
+- Aucun commit sans demande explicite de ma part, même après une étape
+  entièrement terminée et validée.
