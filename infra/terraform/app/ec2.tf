@@ -28,6 +28,7 @@ resource "aws_instance" "backend" {
     ecr_registry       = local.ecr_registry
     ecr_repository_url = aws_ecr_repository.backend.repository_url
     db_password_param  = aws_ssm_parameter.db_password.name
+    log_group_name     = aws_cloudwatch_log_group.app.name
   })
   user_data_replace_on_change = true
 

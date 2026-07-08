@@ -40,6 +40,12 @@ services:
       interval: 30s
       timeout: 5s
       retries: 10
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: AWS_REGION_PLACEHOLDER
+        awslogs-group: LOG_GROUP_PLACEHOLDER
+        awslogs-stream: db
 
   backend:
     image: BACKEND_IMAGE_PLACEHOLDER
@@ -55,12 +61,20 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: AWS_REGION_PLACEHOLDER
+        awslogs-group: LOG_GROUP_PLACEHOLDER
+        awslogs-stream: backend
 
 volumes:
   db-data:
 COMPOSE
 
 sed -i "s|BACKEND_IMAGE_PLACEHOLDER|${ecr_repository_url}:latest|" docker-compose.yml
+sed -i "s|AWS_REGION_PLACEHOLDER|${aws_region}|g" docker-compose.yml
+sed -i "s|LOG_GROUP_PLACEHOLDER|${log_group_name}|g" docker-compose.yml
 
 # Point d'entrée unique pour redéployer le backend, appelé :
 # - à la fin de ce script (premier démarrage, best-effort : peut ne pas

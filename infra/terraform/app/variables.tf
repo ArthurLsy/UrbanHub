@@ -39,3 +39,15 @@ variable "root_volume_size_gb" {
   type        = number
   default     = 20
 }
+
+variable "alert_email" {
+  description = "Adresse email pour les notifications d'alarme CloudWatch"
+  type        = string
+  default     = "address@mail.com"
+}
+
+variable "log_retention_days" {
+  description = "Durée de rétention des logs CloudWatch"
+  type        = number
+  default     = 14
+}

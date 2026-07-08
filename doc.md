@@ -17,9 +17,9 @@ l'ensemble de l'épreuve. Il couvre les 4 missions ; chaque section indique son
 
 | Mission | Périmètre | État |
 |---|---|---|
-| 1 — Infrastructure Cloud & automatisation (EC04-1) | VPC, EC2, ALB, ECR, IAM, secrets, IaC | ✅ Réalisée (infra détruite entre les sessions pour maîtriser le coût — le code est prêt, à ré-appliquer avant démo) |
-| 2 — Sécurisation (EC04-2) | Risques, durcissement, supervision | 🟡 Partielle (mesures déjà intégrées) |
-| 3 — Pipeline CI/CD (EC03-1) | build/test/qualité/sécurité/déploiement | ✅ Workflow écrit, pas encore exécuté en conditions réelles (infra à ré-appliquer) |
+| 1 — Infrastructure Cloud & automatisation (EC04-1) | VPC, EC2, ALB, ECR, IAM, secrets, IaC | ✅ Réalisée, infra active |
+| 2 — Sécurisation (EC04-2) | Risques, durcissement, supervision | 🟡 Analyse de risques + supervision faites ; une vulnérabilité critique (API sans authentification) documentée mais volontairement non corrigée (temps de l'épreuve) |
+| 3 — Pipeline CI/CD (EC03-1) | build/test/qualité/sécurité/déploiement | ✅ Workflow écrit, pas encore exécuté en conditions réelles |
 | 4 — Documentation technique du pipeline (EC03-2) | doc du pipeline | ⬜ À faire |
 
 ---
@@ -230,20 +230,102 @@ incompatibles avec un déploiement continu — corrigés avant d'écrire le work
 
 ## Mission 2 — Sécurisation (EC04-2) 🟡
 
-Mesures **déjà** intégrées dès la Mission 1 (la sécurité est transverse) :
+### 2.1 Analyse et classification des risques
+
+Échelle : Impact et Probabilité cotés Faible / Moyen / Élevé. Gravité =
+croisement des deux, sert à prioriser.
+
+| # | Risque | Catégorie | Source | Impact | Probabilité | Gravité | Mitigation en place | Résiduel |
+|---|---|---|---|---|---|---|---|---|
+| R1 | Écriture non authentifiée sur l'API (`ZoneController` CRUD complet, `POST /ingest/measures`) | Application | N'importe qui sur Internet | Élevé (suppression de zones, injection de fausses mesures sur une plateforme de collectivité) | Élevé (aucune barrière dès que l'ALB est public) | **Critique** | Aucune | **Non traité — voir § 2.4** |
+| R2 | CORS `allowedOriginPattern("*")` + `allowedMethod("*")` sur `/api/**` | Application | Site tiers, via le navigateur d'un visiteur | Élevé (aggrave R1 : déclenchable depuis n'importe quel site) | Élevé | **Critique** | Aucune | **Non traité — voir § 2.4** |
+| R3 | Mosquitto `allow_anonymous true` | Application/Réseau | Accès réseau au port 1883 | Moyen (fausses mesures, écoute de tout le trafic capteurs) | Faible aujourd'hui (MQTT désactivé en cloud, `MQTT_ENABLED=false`) — deviendrait Élevé si MQTT était exposé publiquement | Faible (contexte actuel) | MQTT non exposé dans le déploiement cloud | À traiter avant toute exposition MQTT publique (`allow_anonymous false` + credentials par capteur) |
+| R4 | Mot de passe par défaut en clair dans `application-production.properties` (`spring.datasource.password=urbanhub`) | Application/Config | Lecture du repo Git | Moyen (mdp faible et devinable, mauvaise pratique même si non exploité aujourd'hui) | Faible en prod cloud (écrasé par la variable d'env `SPRING_DATASOURCE_PASSWORD`, injectée depuis SSM — Mission 1), réelle si ce profil tourne sans cette variable | Faible | Écrasé par variable d'environnement dans le déploiement Mission 1 | Correctif recommandé (retirer la valeur en dur) non appliqué |
+| R5 | Pas de HTTPS entre client et ALB | Réseau | Interception sur le trajet Internet → ALB | Moyen (pas de donnée d'authentification aujourd'hui vu R1, mais mesures capteurs et futures données en clair) | Élevé (systématique) | Moyen | Aucune (pas de nom de domaine/certificat disponible) | Amélioration identifiée (Mission 1 §1.6) |
+| R6 | Instance EC2 unique, une seule AZ | Infra/Continuité | Panne matérielle/AZ | Moyen (interruption de service) | Faible-Moyen | Moyen | Alarme `urbanhub-instance-status-check-failed` (détection, pas de bascule auto) | Détecté, non auto-résolu |
+| R7 | Base TimescaleDB non sauvegardée | Infra/Intégrité | Corruption disque, erreur d'exploitation | Élevé (perte de l'historique capteurs) | Faible | Moyen | Volume EBS chiffré, pas de snapshot planifié | Amélioration identifiée |
+| R8 | Dépendances/image avec vulnérabilités connues | Application/Supply chain | Bibliothèques tierces (Gradle, image de base) | Variable | Inconnue avant scan | — | Trivy (fs + image), gate bloquant sur `CRITICAL`, SARIF publié (Mission 3) | Faible (scan automatisé à chaque build) |
+| R9 | Élévation de privilèges via la CI ou l'instance compromise | Infra/Accès | Pipeline ou instance compromis | Élevé | Faible | Moyen | IAM moindre privilège, rôle CI sans droit IAM, pas de SSH, OIDC (Mission 1) | Faible |
+| R10 | Fuite du bucket de state Terraform (contient le mot de passe DB généré, en clair dans le state) | Infra/Secrets | Accès au bucket S3 | Élevé si exposé | Faible (chiffré, non public, accès refusé explicitement à `urbanhub-team`) | Faible | Chiffrement SSE-S3, `aws_s3_bucket_public_access_block`, deny explicite (Mission 1) | Faible |
+
+Les deux risques **Critiques** (R1, R2) sont regroupés et traités à part en
+§ 2.4 : c'est le point le plus grave du dossier, il mérite une explication
+détaillée plutôt qu'une ligne de tableau.
+
+### 2.2 Mesures déjà intégrées (transverses depuis la Mission 1)
 
 | Exigence du sujet | Mesure en place |
 |---|---|
-| Réduire la surface d'exposition | SG : seul l'ALB atteint le backend ; DB jamais exposée ; pas de port SSH |
+| Réduire la surface d'exposition | Security Groups : seul l'ALB atteint le backend ; DB jamais exposée ; pas de port SSH |
 | Protéger les données sensibles | Secret DB généré + SSM SecureString, jamais en clair dans le repo |
-| Gestion des accès (moindre privilège) | Groupes/rôles scopés par tag/ARN ; rôle CI sans droit IAM |
-| Sécurité dans le cycle de vie | Auth CI par OIDC (pas de clé statique) ; state chiffré |
-| Corriger de mauvaises pratiques | Deny explicite du groupe `team` sur le bucket de state (contient des secrets) ; mot de passe en dur dans `application-production.properties` signalé pour correction |
+| Gestion des accès (moindre privilège) | Groupes/rôles IAM scopés par tag/ARN ; rôle CI sans droit IAM |
+| Sécurité dans le cycle de vie | Auth CI par OIDC (pas de clé statique) ; state chiffré ; scan Trivy à chaque build (Mission 3) |
+| Détection de mauvaises pratiques | Deny explicite du groupe `team` sur le bucket de state ; audit du code applicatif (§ 2.1, R1-R4) |
 
-**Reste à faire** pour compléter la Mission 2 : analyse formelle et
-classification des risques (tableau menace / impact / probabilité / mesure) ;
-supervision (logs CloudWatch, métriques, alertes) ; scan de vulnérabilités des
-dépendances ; passage HTTPS. *(Section à compléter au fil de l'avancement.)*
+### 2.3 Plan de supervision
+
+Infra : [`infra/terraform/app/monitoring.tf`](infra/terraform/app/monitoring.tf).
+
+| Élément | Détail |
+|---|---|
+| Logs applicatifs | Conteneurs `backend` et `db` configurés avec le driver Docker `awslogs`, groupe CloudWatch `/urbanhub/app`, rétention 14 jours |
+| Alarme disponibilité instance | `StatusCheckFailed` (namespace `AWS/EC2`), période 300s/2 évaluations — alignée sur le monitoring **basique** (gratuit, granularité 5 min) plutôt que le monitoring détaillé payant |
+| Alarme cible ALB | `UnHealthyHostCount` ≥ 1 sur 3 périodes de 60s (métriques ALB nativement en granularité 1 min) |
+| Alarme erreurs serveur | `HTTPCode_Target_5XX_Count` ≥ 10 sur 5 min |
+| Notification | Topic SNS `urbanhub-alerts` + abonnement email (`var.alert_email`, valeur générique par défaut — à remplacer par une adresse réelle avant exploitation) |
+
+Choix : pas de tableau de bord CloudWatch dédié ni de métriques applicatives
+custom (ex : nombre de mesures ingérées/minute) — la console CloudWatch
+suffit pour une équipe de cette taille, et Spring Boot Actuator n'expose pas
+encore de métriques Micrometer poussées vers CloudWatch. Piste d'amélioration
+si le volume de capteurs grossit significativement.
+
+**Bug rencontré et corrigé pendant la mise en œuvre** : l'option Docker
+`awslogs-stream-prefix` (empruntée par erreur au monde ECS) n'existe pas pour
+le driver `awslogs` standalone de Docker Engine — elle faisait échouer la
+création du conteneur `db` au démarrage, avec `set -euxo pipefail` bloquant
+tout le reste du script (la base ne démarrait même plus). Remplacée par
+`awslogs-stream` (nom fixe par service). Un second bug lié (période d'alarme
+à 60s incompatible avec le monitoring basique 5 min de l'instance) a été
+corrigé dans la foulée. Les deux ont été trouvés en vérifiant réellement
+l'arrivée des logs dans CloudWatch après l'apply, pas en supposant que la
+config Terraform "avait l'air correcte".
+
+### 2.4 Le risque non corrigé : API totalement ouverte (R1 + R2)
+
+**Constat.** Il n'y a aucune dépendance Spring Security dans le projet,
+aucune annotation d'autorisation sur les contrôleurs. `ZoneController`
+expose un CRUD complet (`GET`/`POST`/`PUT`/`DELETE`) et
+`IngestMeasureController` accepte `POST /ingest/measures` sans aucune
+vérification d'identité. La policy CORS du `WebConfig.java` autorise en plus
+n'importe quelle origine et n'importe quelle méthode sur `/api/**` — la seule
+protection un tant soit peu dissuasive (même origine) est donc elle-même
+désactivée.
+
+**Décision : documenté, non corrigé dans le temps imparti de l'épreuve.**
+Corriger correctement ce point demande d'introduire Spring Security, de
+choisir un mécanisme (clé API, JWT...), de le propager au front (qui devra
+authentifier ses appels), et de trancher quelles routes restent publiques
+(un dashboard de collectivité a probablement vocation à exposer les
+lectures `GET` publiquement) — un changement transverse qui dépasse le
+périmètre d'une correction ponctuelle et qui touche à des choix produit
+(le front doit-il avoir un compte de service ? les capteurs eux-mêmes
+doivent-ils s'authentifier individuellement ?) qui ne se tranchent pas
+uniquement côté infra/sécurité.
+
+**Remédiation recommandée** (à implémenter hors épreuve) :
+- Restreindre `WebConfig` à une liste d'origines explicites (le domaine du
+  front), pas un wildcard.
+- Ajouter `spring-boot-starter-security` avec une clé API (en-tête) exigée
+  sur tous les `POST`/`PUT`/`DELETE`, stockée côté serveur en SSM Parameter
+  Store (même mécanisme que le mot de passe DB, déjà en place) — laisser les
+  `GET` publics si c'est un choix produit assumé.
+- Pour l'ingestion HTTP (`/ingest/measures`), une clé par capteur permettrait
+  en plus de révoquer un capteur compromis sans tout casser.
+
+C'est le point à traiter en priorité absolue avant toute mise en production
+réelle — la plateforme actuelle, bien que l'infra cloud soit sécurisée,
+laisse l'application elle-même sans aucune protection.
 
 ---
 
@@ -371,12 +453,18 @@ pistes d'amélioration.
 
 ## Limites connues et pistes d'amélioration (transverses)
 
-1. **HTTP seulement** : pas de nom de domaine → pas de certificat ACM. En prod :
+1. **API sans authentification (R1/R2, cf. Mission 2 § 2.4)** : le risque le
+   plus grave du projet, documenté et volontairement non corrigé faute de
+   temps. Priorité absolue avant toute mise en production réelle.
+2. **HTTP seulement** : pas de nom de domaine → pas de certificat ACM. En prod :
    domaine + ACM + listener HTTPS (443) + redirection 80→443.
-2. **Pas de haute disponibilité** : une instance, une AZ pour le compute.
-3. **Base non sauvegardée** : ajouter des snapshots EBS planifiés ou externaliser.
-4. **Réseau à durcir** : subnet privé + NAT (ou VPC endpoints) si le budget le permet.
-5. **GitHub vs GitLab** : le sujet attend un rendu GitLab ; le dev est sur
+3. **Pas de haute disponibilité** : une instance, une AZ pour le compute.
+4. **Base non sauvegardée** : ajouter des snapshots EBS planifiés ou externaliser.
+5. **Réseau à durcir** : subnet privé + NAT (ou VPC endpoints) si le budget le permet.
+6. **MQTT anonyme** (`mosquitto.conf`) : sans risque tant que MQTT reste
+   désactivé côté cloud, mais à corriger (auth par capteur) avant toute
+   exposition publique du broker.
+7. **GitHub vs GitLab** : le sujet attend un rendu GitLab ; le dev est sur
    GitHub et l'OIDC est configuré pour GitHub Actions. À reprendre avant le
    rendu final (adapter l'issuer OIDC et la condition `sub` au format GitLab).
 
