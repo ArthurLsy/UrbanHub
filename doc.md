@@ -189,7 +189,7 @@ croisement des deux, sert à prioriser.
 | R5 | Pas de HTTPS entre client et ALB | Réseau | Interception sur le trajet Internet → ALB | Moyen | Élevé | Moyen | Aucune (pas de nom de domaine/certificat disponible) | Amélioration identifiée (Limites transverses, point 2) |
 | R6 | Instance EC2 unique, une seule AZ | Infra/Continuité | Panne matérielle/AZ | Moyen | Faible-Moyen | Moyen | Alarme `urbanhub-instance-status-check-failed` (détection, pas de bascule auto) | Détecté, non auto-résolu |
 | R7 | Base TimescaleDB non sauvegardée | Infra/Intégrité | Corruption disque, erreur d'exploitation | Élevé | Faible | Moyen | Volume EBS chiffré, pas de snapshot planifié | Amélioration identifiée |
-| R8 | Dépendances/image avec vulnérabilités connues | Application/Supply chain | Bibliothèques tierces (Gradle, image de base) | Variable | Inconnue avant scan | — | Trivy (fs + image), gate bloquant sur `CRITICAL`, SARIF publié (§ 3.6) | Faible (scan automatisé à chaque build) |
+| R8 | Dépendances/image avec vulnérabilités connues | Application/Supply chain | Bibliothèques tierces (Gradle, image de base) | Variable | Concrétisé une fois : le gate a bloqué un premier build (Tomcat embarqué + Spring Boot, 4 CVE CRITICAL) | — | Trivy (fs + image), gate bloquant sur `CRITICAL`, SARIF publié (§ 3.6) — corrigé par bump Spring Boot `4.0.6` + override `tomcat.version=11.0.22` (`build.gradle`) | Faible (scan automatisé à chaque build, a déjà prouvé son utilité) |
 | R9 | Élévation de privilèges via la CI ou l'instance compromise | Infra/Accès | Pipeline ou instance compromis | Élevé | Faible | Moyen | IAM moindre privilège, rôle CI sans droit IAM, pas de SSH, OIDC (§ 1.4) | Faible |
 | R10 | Fuite du bucket de state Terraform (contient le mot de passe DB généré, en clair dans le state) | Infra/Secrets | Accès au bucket S3 | Élevé si exposé | Faible (chiffré, non public, accès refusé explicitement à `urbanhub-team`) | Faible | Chiffrement SSE-S3, `aws_s3_bucket_public_access_block`, deny explicite (§ 1.4) | Faible |
 
@@ -371,6 +371,12 @@ positif "commande envoyée = déploiement réussi".
 `AWS_ROLE_ARN` n'est **pas** un secret (c'est un identifiant, pas une
 credential) : il est en dur dans le workflow (`env:`), assumable uniquement
 depuis ce dépôt et cette branche grâce à la condition OIDC côté AWS.
+
+**État temporaire** : le job `quality` est en `continue-on-error: true` — la
+connexion à l'instance SonarQube auto-hébergée ne fonctionne pas encore
+(joignable en `curl`, mais l'analyse échoue), donc un échec de ce job
+n'empêche plus `package`/`deploy` de s'exécuter, le temps de résoudre le
+problème côté serveur Sonar. À retirer dès que l'analyse passe.
 
 ### 3.8 Interprétation des résultats produits
 
