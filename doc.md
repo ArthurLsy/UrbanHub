@@ -1,68 +1,49 @@
-# Documentation technique — UrbanHub (EC03 / EC04)
+# Documentation technique — UrbanHub
 
-Document unique de documentation et de justification des choix techniques pour
-l'ensemble de l'épreuve. Il couvre les 4 missions ; chaque section indique son
-état d'avancement.
+Documentation et justification des choix techniques pour l'industrialisation
+(CI/CD), le déploiement cloud et la sécurisation du backend UrbanHub.
 
 - **Projet** : UrbanHub — plateforme de capteurs smart-city (backend Spring
   Boot / Java / Gradle, base TimescaleDB, ingestion MQTT + HTTP).
-- **Cible** : industrialisation (CI/CD), déploiement cloud (AWS), sécurisation.
-- **Cloud** : AWS, région `eu-west-3` (Paris), compte `627403012708`.
+- **Cloud** : AWS, région `eu-west-3` (Paris).
 - **IaC** : Terraform (≥ 1.9).
 
 > La **procédure de déploiement** pas-à-pas est dans un fichier séparé,
-> [`infra/README.md`](infra/README.md) (livrable « ReadMe »). Le présent
-> document est le livrable « Documentation » : il explique **pourquoi** ces
-> choix, pas seulement **comment** déployer.
+> [`infra/README.md`](infra/README.md). Le présent document explique
+> **pourquoi** ces choix, pas seulement **comment** déployer.
 
-| Mission | Périmètre | État |
+| Domaine | Périmètre | État |
 |---|---|---|
-| 1 — Infrastructure Cloud & automatisation (EC04-1) | VPC, EC2, ALB, ECR, IAM, secrets, IaC | ✅ Réalisée, infra active |
-| 2 — Sécurisation (EC04-2) | Risques, durcissement, supervision | 🟡 Analyse de risques + supervision faites ; une vulnérabilité critique (API sans authentification) documentée mais volontairement non corrigée (temps de l'épreuve) |
-| 3 — Pipeline CI/CD (EC03-1) | build/test/qualité/sécurité/déploiement | ✅ Workflow écrit, pas encore exécuté en conditions réelles |
-| 4 — Documentation technique du pipeline (EC03-2) | doc du pipeline | ⬜ À faire |
+| Infrastructure cloud | VPC, EC2, ALB, ECR, IAM, secrets, IaC | ✅ Réalisée, infra active |
+| Sécurité | Risques, durcissement, supervision | 🟡 Analyse de risques + supervision faites ; une vulnérabilité critique (API sans authentification) documentée mais volontairement non corrigée |
+| Pipeline CI/CD | build/test/qualité/sécurité/déploiement | ✅ Workflow écrit, pas encore exécuté en conditions réelles |
 
 ---
 
-## Fil directeur et cohérence de la démarche
-
-Le contexte impose trois contraintes qui reviennent dans **tous** les choix
-ci-dessous, et servent de critère d'arbitrage :
-
-1. **On-premise → cloud progressif** : on reproduit d'abord l'existant
-   (`docker compose`) dans le cloud, sans tout réécrire.
-2. **Équipe à DevOps limité** : à chaque embranchement, on choisit la solution
-   la plus simple qui répond au besoin, quitte à documenter une alternative
-   plus « cloud-native » comme évolution future. La surcomplexité est
-   explicitement pénalisée par le sujet.
-3. **Sécurité transverse (DevSecOps)** : la sécurité n'est pas une mission à
-   part qu'on ajoute à la fin — elle est présente dès la Mission 1 (OIDC,
-   secrets, moindre privilège, pas de SSH). La Mission 2 la formalise et la
-   complète, elle ne la découvre pas.
-
----
-
-## Mission 1 — Infrastructure Cloud & automatisation (EC04-1) ✅
+## 1. Infrastructure cloud
 
 ### 1.1 Architecture générale
 
-```
-        Internet ──HTTP:80──> ALB (public, 2 subnets, 2 AZ)
-                                 │  :8080  (Security Group à Security Group)
-                                 ▼
-                          EC2 t3.small — Amazon Linux 2023
-                          docker compose : backend + TimescaleDB
-                          administrée par SSM (aucun port SSH ouvert)
-                             │ pull image          │ lit le secret DB
-                             ▼                      ▼
-                            ECR              SSM Parameter Store (SecureString)
-                     urbanhub-backend          /urbanhub/db/password
-```
+```mermaid
+flowchart TB
+    Internet(["Internet"]) -->|"HTTP :80"| ALB
 
-Périmètre volontairement limité (le sujet le permet) : centré sur le service
-applicatif backend. Le front-end et le simulateur IoT (MQTT) ne sont pas
-déployés dans le cloud — désactivés ici (`MQTT_ENABLED=false`) et décrits, pas
-recréés.
+    subgraph VPC["VPC urbanhub-vpc — 2 subnets publics, 2 AZ"]
+        ALB["Application Load Balancer<br/>urbanhub-alb"]
+
+        subgraph EC2["EC2 t3.small — Amazon Linux 2023<br/>docker compose"]
+            Backend["Conteneur backend<br/>Spring Boot :8080"]
+            TSDB[("Conteneur TimescaleDB<br/>:5432")]
+        end
+    end
+
+    ALB -->|"SG alb → SG ec2, :8080"| Backend
+    Backend --> TSDB
+
+    Backend -->|"pull image"| ECR[("ECR<br/>urbanhub-backend")]
+    Backend -->|"lit le secret DB"| SSM[("SSM Parameter Store<br/>/urbanhub/db/password<br/>SecureString")]
+    EC2 -.->|"rôle IAM role-urbanhub-ec2"| SSMAdmin["AWS Systems Manager<br/>(Session Manager)<br/>administration, aucun SSH"]
+```
 
 ### 1.2 Organisation de l'IaC — 3 modules Terraform
 
@@ -74,17 +55,13 @@ recréés.
 
 **Pourquoi découper ?** Séparer les domaines de changement : on ne rejoue pas
 tout l'IAM pour modifier une règle réseau, et une erreur dans `app` ne peut pas
-corrompre le state IAM. Le state est distant (S3, chiffré, versionné) pour
-qu'il soit partageable et non lié à une machine ; verrouillage natif S3
-(Terraform ≥ 1.10), ce qui évite d'ajouter une table DynamoDB (une brique de
-moins à gérer).
+corrompre le state IAM.
 
 ### 1.3 Choix d'architecture et justifications
 
 #### EC2 + `docker compose`, pas ECS/Fargate/Kubernetes
 Le backend tourne déjà en `docker compose` en local. Le reproduire sur une EC2
-est le chemin le plus court entre « ça marche en local » et « ça marche en
-prod » : aucune abstraction nouvelle à apprendre. ECS/EKS apporteraient
+est le chemin le plus court: aucune abstraction nouvelle à apprendre. ECS/EKS apporteraient
 l'autoscaling et un plan de contrôle managé, mais c'est du sur-dimensionnement
 pour un service sans contrainte de charge actuelle. **Choix réversible** :
 migrer vers ECS plus tard ne toucherait ni l'IAM ni l'image Docker.
@@ -93,26 +70,24 @@ migrer vers ECS plus tard ne toucherait ni l'IAM ni l'image Docker.
 RDS PostgreSQL **ne supporte pas** l'extension TimescaleDB, dont dépend
 l'`hypertable` du projet. Garder la base en conteneur (comme en local) préserve
 la compatibilité et évite de réécrire la couche d'accès aux données. *Limite
-assumée* : la base partage le sort de l'instance (pas de HA, sauvegarde à
-ajouter — cf. pistes d'amélioration).
+assumée* : la base partage le sort de l'instance
 
 #### Subnets publics + Security Groups, sans NAT Gateway
 L'instance est dans un subnet public, mais **son Security Group n'autorise
 aucune entrée depuis Internet** : seul l'ALB (SG distinct) atteint le port
 8080. Le vrai contrôle d'accès est le SG, pas le placement réseau. Un subnet
 privé + NAT Gateway ajouterait une défense en profondeur, mais le NAT coûte
-~32 €/mois + trafic pour une seule instance : disproportionné. C'est le point
-d'amélioration n°1 pour une vraie prod.
+~32 €/mois + trafic pour une seule instance : disproportionné.
 
 #### Administration et déploiement par SSM, pas SSH
 Aucune paire de clés SSH, aucun port 22 ouvert. L'accès shell passe par AWS
 Systems Manager Session Manager (rôle `role-urbanhub-ec2` +
 `AmazonSSMManagedInstanceCore`). Cela supprime toute la gestion des clés SSH et
-la surface d'attaque associée. Bonus : c'est le **même** mécanisme (SSM
+la surface d'attaque associée. C'est le **même** mécanisme (SSM
 `SendCommand`) que le pipeline CI utilisera pour déployer, en remplacement du
-`ssh + SSH_PRIVATE_KEY` du `.gitlab-ci.yml` on-premise actuel.
+`ssh + SSH_PRIVATE_KEY` de l'ancien pipeline CI/CD on-premise.
 
-### 1.4 IAM — identités et accès (volet DevSecOps de la Mission 1)
+### 1.4 IAM — identités et accès
 
 Ressources créées :
 
@@ -128,27 +103,13 @@ Ressources créées :
 Une clé statique doit être stockée (donc peut fuiter), tourne rarement, et
 reste valide même si le repo est compromis. Avec OIDC, GitHub Actions présente
 un jeton signé, valable le temps du job, vérifié par AWS avant de délivrer des
-credentials temporaires. Rien à stocker, rien à faire tourner. Contrepartie :
-mise en place initiale plus complexe (provider + condition de confiance) —
-acceptée car faite une seule fois. La condition de confiance restreint
-l'assume-role à `repo:ArthurLsy/UrbanHub:ref:refs/heads/main` : un push sur une
-autre branche ou depuis un fork ne peut pas assumer le rôle.
-
-#### 2 groupes humains, pas 3 (Admin/Dev/Analyst du TD1)
-Le découpage à trois groupes vaut pour une équipe où des besoins distincts sont
-stables (un analyste qui ne doit jamais toucher l'infra). Pour une équipe aussi
-réduite, la seule frontière qui compte est **admin vs non-admin** ; séparer
-« dev » et « analyst » ajoute de la gestion sans bénéfice réel. `urbanhub-team`
-réunit donc exploitation + lecture seule. Scinder plus tard = changement
-Terraform mineur.
+credentials temporaires. Rien à stocker, rien à faire tourner.
 
 #### Le rôle CI n'a aucun droit IAM
-Leçon directe du TD1-b : donner `IAMFullAccess` à un pipeline permet à un
-attaquant qui le compromet de se créer des accès persistants. `role-urbanhub-ci`
+Le `role-urbanhub-ci`
 ne sait faire que deux choses : pousser une image sur *un* repo ECR précis, et
 déclencher un déploiement SSM sur *les* instances taguées `Project=urbanhub`.
-Les changements d'IAM restent appliqués manuellement par un admin humain
-(`terraform apply` local), jamais depuis le pipeline. On sépare volontairement
+Les changements d'IAM restent appliqués manuellement par un admin humain, jamais depuis le pipeline. On sépare volontairement
 « déployer l'appli » (auto, risque contenu) de « changer les droits » (manuel,
 revu).
 
@@ -157,13 +118,6 @@ Chaque policy est scopée par tag `Project=urbanhub` ou par préfixe de ressourc
 `urbanhub-*` / path `/urbanhub/`. `Resource: "*"` n'est utilisé que pour les
 actions qui ne supportent structurellement pas le scoping
 (`ecr:GetAuthorizationToken`, `ssm:GetCommandInvocation`…).
-
-*Limite assumée* : `ec2:RunInstances` ne se restreint que par `aws:RequestTag`
-(le tag posé par la requête), alors que les actions sur ressource existante
-utilisent `aws:ResourceTag`. Les deux sont couvertes, mais un oubli de tag à la
-création sort du périmètre. Même limite que le TD1 (« granularité difficile de
-l'IAM ») : atténuée par convention de nommage plutôt que résolue entièrement,
-ce qui serait disproportionné.
 
 ### 1.5 Gestion des secrets
 Le mot de passe de la base est **généré** par Terraform (`random_password`) et
@@ -184,22 +138,15 @@ conteneurs par `env_file`. Il n'apparaît jamais dans le code, le
 | S3 (state Terraform) | quelques Ko | ~0 € |
 | **Total estimé** | | **~35-40 €/mois** |
 
-Poste le plus lourd : l'ALB (presque le prix de l'instance). Alternative
-d'économie pour une démo : exposer l'instance directement (Elastic IP + SG) et
-supprimer l'ALB (~-19 €/mois), au prix de la terminaison TLS et d'un point
-d'entrée stable. ALB conservé car il prépare proprement HTTPS et le
-health-check. Estimations à la demande ; un Savings Plan 1 an réduirait l'EC2
-d'environ 30 %.
-
 **Performances** : `t3.small` (2 Go) plutôt que `t3.micro` (1 Go) car la JVM et
 TimescaleDB cohabitent sur la même machine — 1 Go serait à risque d'OOM. Les T3
 sont « burstable », adaptés à des pointes ponctuelles. Si l'ingestion MQTT
 devient continue : passer à une famille `m` ou séparer la base.
 
-### 1.6bis Corrections apportées en préparant la Mission 3
+### 1.7 Corrections apportées lors de la mise en place du pipeline CI/CD
 
-En construisant le pipeline CI/CD, deux choix de la Mission 1 se sont révélés
-incompatibles avec un déploiement continu — corrigés avant d'écrire le workflow :
+En construisant le pipeline CI/CD, deux choix initiaux se sont révélés
+incompatibles avec un déploiement continu :
 
 - **ECR `IMMUTABLE` → `MUTABLE`** (`infra/terraform/app/ecr.tf`) : un repo
   ECR `IMMUTABLE` interdit de re-pousser un tag déjà existant. Le déploiement
@@ -213,7 +160,7 @@ incompatibles avec un déploiement continu — corrigés avant d'écrire le work
   Action de lecture seule, `Resource: "*"` (ne supporte pas le scoping —
   cohérent avec le reste des permissions "descriptives" déjà accordées ailleurs).
 
-### 1.7 Vérifications effectuées (pas seulement « sur le papier »)
+### 1.8 Vérifications effectuées
 - IAM validé avec `aws iam simulate-principal-policy` : le rôle CI ne peut pas
   créer d'utilisateur IAM (`implicitDeny`), peut pousser sur `urbanhub-backend`
   mais pas sur un autre repo (`implicitDeny`) ; `urbanhub-team` ne peut jamais
@@ -223,12 +170,10 @@ incompatibles avec un déploiement continu — corrigés avant d'écrire le work
 - Conteneur TimescaleDB : `Up (healthy)`.
 - Sécurité réseau testée depuis l'extérieur : ports 5432 (DB) et 8080 (direct)
   filtrés ; ALB joignable en HTTP.
-- Backend non démarré à ce stade : **normal**, aucune image dans ECR (Mission
-  3). La cible ALB passera `healthy` au premier déploiement d'image.
 
 ---
 
-## Mission 2 — Sécurisation (EC04-2) 🟡
+## 2. Sécurité
 
 ### 2.1 Analyse et classification des risques
 
@@ -237,29 +182,29 @@ croisement des deux, sert à prioriser.
 
 | # | Risque | Catégorie | Source | Impact | Probabilité | Gravité | Mitigation en place | Résiduel |
 |---|---|---|---|---|---|---|---|---|
-| R1 | Écriture non authentifiée sur l'API (`ZoneController` CRUD complet, `POST /ingest/measures`) | Application | N'importe qui sur Internet | Élevé (suppression de zones, injection de fausses mesures sur une plateforme de collectivité) | Élevé (aucune barrière dès que l'ALB est public) | **Critique** | Aucune | **Non traité — voir § 2.4** |
-| R2 | CORS `allowedOriginPattern("*")` + `allowedMethod("*")` sur `/api/**` | Application | Site tiers, via le navigateur d'un visiteur | Élevé (aggrave R1 : déclenchable depuis n'importe quel site) | Élevé | **Critique** | Aucune | **Non traité — voir § 2.4** |
-| R3 | Mosquitto `allow_anonymous true` | Application/Réseau | Accès réseau au port 1883 | Moyen (fausses mesures, écoute de tout le trafic capteurs) | Faible aujourd'hui (MQTT désactivé en cloud, `MQTT_ENABLED=false`) — deviendrait Élevé si MQTT était exposé publiquement | Faible (contexte actuel) | MQTT non exposé dans le déploiement cloud | À traiter avant toute exposition MQTT publique (`allow_anonymous false` + credentials par capteur) |
-| R4 | Mot de passe par défaut en clair dans `application-production.properties` (`spring.datasource.password=urbanhub`) | Application/Config | Lecture du repo Git | Moyen (mdp faible et devinable, mauvaise pratique même si non exploité aujourd'hui) | Faible en prod cloud (écrasé par la variable d'env `SPRING_DATASOURCE_PASSWORD`, injectée depuis SSM — Mission 1), réelle si ce profil tourne sans cette variable | Faible | Écrasé par variable d'environnement dans le déploiement Mission 1 | Correctif recommandé (retirer la valeur en dur) non appliqué |
-| R5 | Pas de HTTPS entre client et ALB | Réseau | Interception sur le trajet Internet → ALB | Moyen (pas de donnée d'authentification aujourd'hui vu R1, mais mesures capteurs et futures données en clair) | Élevé (systématique) | Moyen | Aucune (pas de nom de domaine/certificat disponible) | Amélioration identifiée (Mission 1 §1.6) |
-| R6 | Instance EC2 unique, une seule AZ | Infra/Continuité | Panne matérielle/AZ | Moyen (interruption de service) | Faible-Moyen | Moyen | Alarme `urbanhub-instance-status-check-failed` (détection, pas de bascule auto) | Détecté, non auto-résolu |
-| R7 | Base TimescaleDB non sauvegardée | Infra/Intégrité | Corruption disque, erreur d'exploitation | Élevé (perte de l'historique capteurs) | Faible | Moyen | Volume EBS chiffré, pas de snapshot planifié | Amélioration identifiée |
-| R8 | Dépendances/image avec vulnérabilités connues | Application/Supply chain | Bibliothèques tierces (Gradle, image de base) | Variable | Inconnue avant scan | — | Trivy (fs + image), gate bloquant sur `CRITICAL`, SARIF publié (Mission 3) | Faible (scan automatisé à chaque build) |
-| R9 | Élévation de privilèges via la CI ou l'instance compromise | Infra/Accès | Pipeline ou instance compromis | Élevé | Faible | Moyen | IAM moindre privilège, rôle CI sans droit IAM, pas de SSH, OIDC (Mission 1) | Faible |
-| R10 | Fuite du bucket de state Terraform (contient le mot de passe DB généré, en clair dans le state) | Infra/Secrets | Accès au bucket S3 | Élevé si exposé | Faible (chiffré, non public, accès refusé explicitement à `urbanhub-team`) | Faible | Chiffrement SSE-S3, `aws_s3_bucket_public_access_block`, deny explicite (Mission 1) | Faible |
+| R1 | Écriture non authentifiée sur l'API (`ZoneController` CRUD complet, `POST /ingest/measures`) | Application | N'importe qui sur Internet | Élevé | **Critique** | Aucune | **Non traité — voir § 2.4** |
+| R2 | CORS `allowedOriginPattern("*")` + `allowedMethod("*")` sur `/api/**` | Application | Site tiers, via le navigateur d'un visiteur | Élevé | Élevé | **Critique** | Aucune | **Non traité — voir § 2.4** |
+| R3 | Mosquitto `allow_anonymous true` | Application/Réseau | Accès réseau au port 1883 | Moyen | Faible aujourd'hui — deviendrait Élevé si MQTT était exposé publiquement | Faible | MQTT non exposé dans le déploiement cloud | À traiter avant toute exposition MQTT publique (`allow_anonymous false` + credentials par capteur) |
+| R4 | Mot de passe par défaut en clair dans `application-production.properties` (`spring.datasource.password=urbanhub`) | Application/Config | Lecture du repo Git | Moyen | Faible en prod cloud, réelle si ce profil tourne sans cette variable | Faible | Écrasé par variable d'environnement dans le déploiement (§ 1.5) | Correctif recommandé (retirer la valeur en dur) non appliqué |
+| R5 | Pas de HTTPS entre client et ALB | Réseau | Interception sur le trajet Internet → ALB | Moyen | Élevé | Moyen | Aucune (pas de nom de domaine/certificat disponible) | Amélioration identifiée (Limites transverses, point 2) |
+| R6 | Instance EC2 unique, une seule AZ | Infra/Continuité | Panne matérielle/AZ | Moyen | Faible-Moyen | Moyen | Alarme `urbanhub-instance-status-check-failed` (détection, pas de bascule auto) | Détecté, non auto-résolu |
+| R7 | Base TimescaleDB non sauvegardée | Infra/Intégrité | Corruption disque, erreur d'exploitation | Élevé | Faible | Moyen | Volume EBS chiffré, pas de snapshot planifié | Amélioration identifiée |
+| R8 | Dépendances/image avec vulnérabilités connues | Application/Supply chain | Bibliothèques tierces (Gradle, image de base) | Variable | Inconnue avant scan | — | Trivy (fs + image), gate bloquant sur `CRITICAL`, SARIF publié (§ 3.6) | Faible (scan automatisé à chaque build) |
+| R9 | Élévation de privilèges via la CI ou l'instance compromise | Infra/Accès | Pipeline ou instance compromis | Élevé | Faible | Moyen | IAM moindre privilège, rôle CI sans droit IAM, pas de SSH, OIDC (§ 1.4) | Faible |
+| R10 | Fuite du bucket de state Terraform (contient le mot de passe DB généré, en clair dans le state) | Infra/Secrets | Accès au bucket S3 | Élevé si exposé | Faible (chiffré, non public, accès refusé explicitement à `urbanhub-team`) | Faible | Chiffrement SSE-S3, `aws_s3_bucket_public_access_block`, deny explicite (§ 1.4) | Faible |
 
 Les deux risques **Critiques** (R1, R2) sont regroupés et traités à part en
 § 2.4 : c'est le point le plus grave du dossier, il mérite une explication
 détaillée plutôt qu'une ligne de tableau.
 
-### 2.2 Mesures déjà intégrées (transverses depuis la Mission 1)
+### 2.2 Mesures de sécurité déjà en place
 
-| Exigence du sujet | Mesure en place |
+| Exigence | Mesure en place |
 |---|---|
 | Réduire la surface d'exposition | Security Groups : seul l'ALB atteint le backend ; DB jamais exposée ; pas de port SSH |
 | Protéger les données sensibles | Secret DB généré + SSM SecureString, jamais en clair dans le repo |
 | Gestion des accès (moindre privilège) | Groupes/rôles IAM scopés par tag/ARN ; rôle CI sans droit IAM |
-| Sécurité dans le cycle de vie | Auth CI par OIDC (pas de clé statique) ; state chiffré ; scan Trivy à chaque build (Mission 3) |
+| Sécurité dans le cycle de vie | Auth CI par OIDC (pas de clé statique) ; state chiffré ; scan Trivy à chaque build (§ 3.6) |
 | Détection de mauvaises pratiques | Deny explicite du groupe `team` sur le bucket de state ; audit du code applicatif (§ 2.1, R1-R4) |
 
 ### 2.3 Plan de supervision
@@ -269,27 +214,20 @@ Infra : [`infra/terraform/app/monitoring.tf`](infra/terraform/app/monitoring.tf)
 | Élément | Détail |
 |---|---|
 | Logs applicatifs | Conteneurs `backend` et `db` configurés avec le driver Docker `awslogs`, groupe CloudWatch `/urbanhub/app`, rétention 14 jours |
-| Alarme disponibilité instance | `StatusCheckFailed` (namespace `AWS/EC2`), période 300s/2 évaluations — alignée sur le monitoring **basique** (gratuit, granularité 5 min) plutôt que le monitoring détaillé payant |
-| Alarme cible ALB | `UnHealthyHostCount` ≥ 1 sur 3 périodes de 60s (métriques ALB nativement en granularité 1 min) |
+| Alarme disponibilité instance | `StatusCheckFailed` (namespace `AWS/EC2`), période 300s/2 évaluations — alignée sur le monitoring basique (5 min), pas le détaillé (payant) |
+| Alarme cible ALB | `UnHealthyHostCount` ≥ 1 sur 3 périodes de 60s |
 | Alarme erreurs serveur | `HTTPCode_Target_5XX_Count` ≥ 10 sur 5 min |
-| Notification | Topic SNS `urbanhub-alerts` + abonnement email (`var.alert_email`, valeur générique par défaut — à remplacer par une adresse réelle avant exploitation) |
-
-Choix : pas de tableau de bord CloudWatch dédié ni de métriques applicatives
-custom (ex : nombre de mesures ingérées/minute) — la console CloudWatch
-suffit pour une équipe de cette taille, et Spring Boot Actuator n'expose pas
-encore de métriques Micrometer poussées vers CloudWatch. Piste d'amélioration
-si le volume de capteurs grossit significativement.
+| Notification | Topic SNS `urbanhub-alerts` + abonnement email (`var.alert_email`, valeur générique par défaut à remplacer avant exploitation) |
 
 **Bug rencontré et corrigé pendant la mise en œuvre** : l'option Docker
-`awslogs-stream-prefix` (empruntée par erreur au monde ECS) n'existe pas pour
+`awslogs-stream-prefix` n'existe pas pour
 le driver `awslogs` standalone de Docker Engine — elle faisait échouer la
 création du conteneur `db` au démarrage, avec `set -euxo pipefail` bloquant
 tout le reste du script (la base ne démarrait même plus). Remplacée par
 `awslogs-stream` (nom fixe par service). Un second bug lié (période d'alarme
 à 60s incompatible avec le monitoring basique 5 min de l'instance) a été
-corrigé dans la foulée. Les deux ont été trouvés en vérifiant réellement
-l'arrivée des logs dans CloudWatch après l'apply, pas en supposant que la
-config Terraform "avait l'air correcte".
+corrigé dans la foulée — trouvé en vérifiant l'arrivée réelle des logs dans
+CloudWatch après l'apply.
 
 ### 2.4 Le risque non corrigé : API totalement ouverte (R1 + R2)
 
@@ -302,47 +240,36 @@ n'importe quelle origine et n'importe quelle méthode sur `/api/**` — la seule
 protection un tant soit peu dissuasive (même origine) est donc elle-même
 désactivée.
 
-**Décision : documenté, non corrigé dans le temps imparti de l'épreuve.**
-Corriger correctement ce point demande d'introduire Spring Security, de
-choisir un mécanisme (clé API, JWT...), de le propager au front (qui devra
-authentifier ses appels), et de trancher quelles routes restent publiques
-(un dashboard de collectivité a probablement vocation à exposer les
-lectures `GET` publiquement) — un changement transverse qui dépasse le
-périmètre d'une correction ponctuelle et qui touche à des choix produit
-(le front doit-il avoir un compte de service ? les capteurs eux-mêmes
-doivent-ils s'authentifier individuellement ?) qui ne se tranchent pas
-uniquement côté infra/sécurité.
-
-**Remédiation recommandée** (à implémenter hors épreuve) :
-- Restreindre `WebConfig` à une liste d'origines explicites (le domaine du
-  front), pas un wildcard.
-- Ajouter `spring-boot-starter-security` avec une clé API (en-tête) exigée
-  sur tous les `POST`/`PUT`/`DELETE`, stockée côté serveur en SSM Parameter
-  Store (même mécanisme que le mot de passe DB, déjà en place) — laisser les
-  `GET` publics si c'est un choix produit assumé.
+**Remédiation recommandée** :
+- Restreindre `WebConfig` à une liste d'origines explicites, pas un wildcard.
+- Ajouter `spring-boot-starter-security` avec une clé API exigée sur tous les
+  `POST`/`PUT`/`DELETE`, stockée en SSM Parameter Store (même mécanisme que
+  le mot de passe DB) — laisser les `GET` publics si c'est un choix produit
+  assumé.
 - Pour l'ingestion HTTP (`/ingest/measures`), une clé par capteur permettrait
-  en plus de révoquer un capteur compromis sans tout casser.
+  de révoquer un capteur compromis sans tout casser.
 
-C'est le point à traiter en priorité absolue avant toute mise en production
-réelle — la plateforme actuelle, bien que l'infra cloud soit sécurisée,
-laisse l'application elle-même sans aucune protection.
+Point à traiter en priorité absolue avant toute mise en production réelle.
 
 ---
 
-## Mission 3 — Pipeline CI/CD (EC03-1) ✅ (workflow écrit, non encore exécuté en réel)
+## 3. Pipeline CI/CD ✅ (workflow écrit, non encore exécuté en réel)
 
 Workflow : [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml).
 
-### 3.1 Pourquoi GitHub Actions et pas GitLab CI
+### 3.1 Outils mobilisés et raisons de leur sélection
 
-Le sujet attend un rendu GitLab, mais le développement a lieu sur GitHub
-(`ArthurLsy/UrbanHub`) — cf. la réserve déjà notée en Mission 1. Le pipeline a
-donc été construit pour **GitHub Actions**, en reprenant la structure et la
-logique de l'ancien `.gitlab-ci.yml` (mêmes 4 grandes étapes : build, test,
-qualité, déploiement), adaptée aux mécanismes GitHub (OIDC natif, artefacts,
-Security tab). *À reprendre pour GitLab CI avant le rendu final si le dépôt
-bascule — la logique métier ne change pas, seule la syntaxe et l'auth OIDC
-changent (issuer `gitlab.com` au lieu de `token.actions.githubusercontent.com`).*
+| Outil | Rôle dans le pipeline | Pourquoi celui-ci |
+|---|---|---|
+| GitHub Actions | Orchestrateur CI/CD | Plateforme du dépôt actuel ; runners hébergés gratuits, OIDC natif vers AWS sans configuration tierce |
+| Gradle (wrapper `./gradlew`) | Build, tests, couverture | Déjà l'outil de build du projet (`build.gradle`) — aucun nouvel outil de build introduit |
+| JaCoCo | Couverture de code | Plugin Gradle déjà configuré dans `build.gradle`, réutilisé tel quel |
+| `mikepenz/action-junit-report` | Publication des résultats de tests en annotations lisibles | Action GitHub maintenue, lit directement le XML JUnit produit par Gradle — pas de reformatage de sortie à écrire soi-même |
+| SonarQube (auto-hébergé) | Analyse de qualité + quality gate | Repris tel quel de l'ancien pipeline CI (plugin `org.sonarqube` déjà dans `build.gradle`) ; auto-hébergé pour rester cohérent avec l'existant plutôt que migrer vers SonarCloud sans raison |
+| Trivy (`aquasecurity/trivy-action`) | Scan de vulnérabilités (dépendances + image) | Outil DevSecOps de référence, gratuit, sans compte à créer, sortie SARIF native compatible GitHub Security — évite d'ajouter un service tiers de plus pour une équipe déjà à outils limités |
+| Docker / `Dockerfile.prod` | Production de l'artefact déployable | Artefact autonome et versionnable, cohérent avec le déploiement sur EC2 (§ 1.3) |
+| `aws-actions/configure-aws-credentials` + `amazon-ecr-login` | Authentification AWS et connexion ECR | Actions officielles AWS, gèrent l'échange OIDC → credentials temporaires sans code custom |
+| AWS SSM (`ssm:SendCommand`) | Déclenchement du déploiement | Déjà le mécanisme d'administration retenu pour l'infrastructure (pas de SSH, § 1.3) ; le pipeline réutilise le même canal plutôt que d'en ouvrir un nouveau |
 
 ### 3.2 Découpage en 6 jobs
 
@@ -355,26 +282,42 @@ changent (issuer `gitlab.com` au lieu de `token.actions.githubusercontent.com`).
 | `package` | Build image Docker (`Dockerfile.prod`), scan, push ECR | `test`, `quality`, `security` | **push sur main uniquement** |
 | `deploy` | Déclenchement du redéploiement via SSM | `package` | **push sur main uniquement** |
 
+```mermaid
+flowchart LR
+    Trigger(["push / pull_request → main"]) --> Build["build<br/>gradlew assemble"]
+    Trigger --> Security["security<br/>Trivy fs"]
+
+    Build --> Test["test<br/>gradlew test + jacoco"]
+    Test --> Quality["quality<br/>SonarQube, gate bloquant"]
+
+    subgraph MainOnly["push sur main uniquement"]
+        Package["package<br/>build image, scan, push ECR"]
+        Deploy["deploy<br/>ssm:SendCommand"]
+        Package --> Deploy
+    end
+
+    Quality --> Package
+    Security --> Package
+```
+
 Le séquençage reproduit celui de l'ancien pipeline (build → test → qualité →
-déploiement), en ajoutant un job `security` dédié (le sujet le demande
-explicitement, l'ancien pipeline n'en avait pas) et un job `package` distinct
+déploiement), en ajoutant un job `security` dédié et un job `package` distinct
 du déploiement (produire l'artefact et le déployer sont deux responsabilités
 différentes, avec des échecs de nature différente).
 
 `package` et `deploy` ne tournent que sur push vers `main` : sur une pull
 request, le code est construit, testé, analysé et scanné, mais aucune image
-n'est publiée ni déployée — exactement la même logique que `rules: if
-$CI_COMMIT_BRANCH == 'main'` / `only: main` de l'ancien `.gitlab-ci.yml`.
+n'est publiée ni déployée — même logique de restriction par branche que dans
+l'ancien pipeline CI.
 
 ### 3.3 Authentification AWS : OIDC, pas de secret statique
 
-`package` et `deploy` assument `role-urbanhub-ci` (créé en Mission 1) via
+`package` et `deploy` assument `role-urbanhub-ci` (§ 1.4) via
 `aws-actions/configure-aws-credentials`. Aucun `AWS_ACCESS_KEY_ID` /
 `AWS_SECRET_ACCESS_KEY` en secret GitHub : la confiance vient de la condition
 OIDC (dépôt + branche `main`), pas d'une clé qui pourrait fuiter. Seuls ces
 deux jobs reçoivent la permission `id-token: write` — le reste du workflow
-(`build`, `test`, `quality`, `security`) n'a aucun accès AWS, cohérent avec le
-principe de moindre privilège déjà appliqué à l'IAM.
+(`build`, `test`, `quality`, `security`) n'a aucun accès AWS.
 
 ### 3.4 Artefact déployable : `Dockerfile.prod`
 
@@ -384,13 +327,13 @@ uniquement au dev local, où `docker-compose.yml` lance `./gradlew bootRun`
 build multi-stage (`bootJar` dans un stage JDK, puis copie du jar dans un
 stage **JRE** minimal), utilisateur non-root, `ENTRYPOINT` explicite. Séparer
 les deux Dockerfile évite de complexifier le chemin de dev pour satisfaire un
-besoin de prod, et inversement.
+besoin de prod.
 
 Chaque build pousse **deux tags** sur la même image : `:latest` (mobile,
 utilisé par le déploiement) et `:<git-sha>` (fixe, traçabilité/rollback). Ce
-choix a nécessité de revenir sur une décision de la Mission 1 : le dépôt ECR
-avait été créé en `IMMUTABLE`, ce qui aurait interdit de re-pousser `:latest`
-à chaque build — corrigé en `MUTABLE` (cf. Mission 1, § 1.6bis ci-dessous).
+choix a nécessité de revenir sur une décision initiale : le dépôt ECR avait
+été créé en `IMMUTABLE`, ce qui aurait interdit de re-pousser `:latest` à
+chaque build — corrigé en `MUTABLE` (§ 1.7).
 
 ### 3.5 Sécurité (DevSecOps) dans le pipeline
 
@@ -398,13 +341,10 @@ avait été créé en `IMMUTABLE`, ce qui aurait interdit de re-pousser `:latest
   toujours publié dans l'onglet *Security* du repo (SARIF), même si le job
   échoue ensuite ; un second passage, bloquant uniquement sur `CRITICAL`,
   fait échouer le pipeline. Sévérité `HIGH` remontée mais non bloquante — un
-  `HIGH` mérite d'être vu, pas nécessairement d'arrêter tout déploiement pour
-  une équipe qui débute en DevSecOps (éviter le pipeline "qui bloque tout le
-  temps" que plus personne ne regarde).
+  pipeline qui bloque sur chaque `HIGH` finit par ne plus être regardé.
 - **Scan de l'image** (job `package`, Trivy `image`) : même logique, sur
   l'image buildée juste avant de la pousser sur ECR — double contrôle avec le
-  scan `scan_on_push` déjà configuré sur le repo ECR (Mission 1), qui lui agit
-  après coup, côté registre.
+  scan `scan_on_push` déjà configuré côté registre.
 - **Quality gate Sonar bloquant** : `sonar.qualitygate.wait=true` (déjà dans
   `build.gradle`) fait échouer la tâche Gradle — donc le job — si le gate est
   rouge, ce qui bloque `package`/`deploy` en aval.
@@ -414,7 +354,7 @@ avait été créé en `IMMUTABLE`, ce qui aurait interdit de re-pousser `:latest
 Le job `deploy` ne connaît **aucun ID d'instance en dur** : il interroge
 `ec2:DescribeInstances` (tag `Project=urbanhub`, état `running`) pour trouver
 sa cible, puis déclenche `/opt/urbanhub/redeploy.sh` via `ssm:SendCommand`
-(script créé par le `user-data` Terraform de la Mission 1, cf.
+(script créé par le `user-data` Terraform, § 1.3, cf.
 `infra/terraform/app/templates/user_data.sh.tpl`). Ce choix rend le pipeline
 résilient à une recréation de l'instance (nouvel ID) sans toucher au workflow.
 Le job **attend activement** le résultat de la commande SSM (jusqu'à 2 min) et
@@ -432,30 +372,61 @@ positif "commande envoyée = déploiement réussi".
 credential) : il est en dur dans le workflow (`env:`), assumable uniquement
 depuis ce dépôt et cette branche grâce à la condition OIDC côté AWS.
 
-### 3.8 Point de vigilance : infra détruite entre les sessions
+### 3.8 Interprétation des résultats produits
 
-L'infra AWS (modules `iam` et `app`) a été détruite volontairement après la
-Mission 1 pour ne pas payer pendant les périodes d'inactivité. Le pipeline a
-donc été écrit et relu, mais **pas encore exécuté en conditions réelles** — un
-`terraform apply` (iam puis app) est nécessaire avant le premier run réussi de
-`package`/`deploy`. À faire avant la démonstration finale.
+Ce que doit regarder un pair technique quand un job échoue, et ce que ça
+signifie concrètement :
 
----
+| Job | Où regarder | Comment lire un échec |
+|---|---|---|
+| `build` | Log du job (onglet *Actions*) | Erreur de compilation — le code ne compile pas, rien d'autre à interpréter |
+| `test` | Annotations directement sur le diff (ajoutées par `action-junit-report`) + artefact `test-and-coverage-reports` (rapport HTML complet + JaCoCo) | Un test rouge = régression fonctionnelle réelle, pas un flake présumé : le pipeline ne retry aucun test automatiquement |
+| `quality` | Log du job pour le verdict quality gate ; détail complet (bugs, code smells, duplication, couverture par fichier) sur l'instance SonarQube elle-même (`SONAR_HOST_URL`), projet `UrbanHub` | Le job échoue **seulement** si le *quality gate* est rouge (seuils définis côté Sonar, pas dans le workflow) — un avertissement Sonar qui ne fait pas échouer le gate n'échoue pas le job |
+| `security` | Onglet **Security → Code scanning alerts** du repo (résultats SARIF complets, y compris `HIGH` non bloquant) ; log du job pour le détail du gate `CRITICAL` | Une `CRITICAL` fait échouer le job : identifier la dépendance concernée dans l'alerte, vérifier si un correctif existe (montée de version) avant de rouvrir une PR. Un `HIGH` visible dans Security mais job vert = à traiter mais pas bloquant |
+| `package` | Log du job (étape "Scan de l'image") + résumé de job (`GITHUB_STEP_SUMMARY`, tag de l'image publiée) | Même logique que `security`, appliquée à l'image finale plutôt qu'au code source — une vulnérabilité peut apparaître ici sans être apparue en amont si elle vient de l'image de base Docker |
+| `deploy` | Résumé de job (instance ciblée, ID de commande SSM) ; en cas d'échec, le job affiche directement `StandardErrorContent` de la commande SSM dans le log | Un échec ici veut dire que la commande a bien été envoyée mais a échoué **sur l'instance** (ex : image introuvable, `docker compose` en erreur) — pas un problème réseau/permissions (sinon `send-command` lui-même aurait échoué plus tôt) |
 
-## Mission 4 — Documentation technique du pipeline (EC03-2) ⬜
+### 3.9 Limites et pistes d'amélioration (spécifiques au pipeline, contexte production)
 
-*À rédiger une fois le pipeline en place* : logique globale et découpage, outils
-et raisons du choix, prérequis (variables, secrets, services), intégration avec
-l'infra cloud, interprétation des résultats (tests/qualité/sécurité), limites et
-pistes d'amélioration.
+- **Pas d'environnement de staging.** `main` déploie directement et uniquement
+  sur l'unique instance existante — aucune étape intermédiaire pour valider un
+  changement avant qu'il n'atteigne l'environnement réel. Piste : un
+  environnement `staging` (deuxième instance, ou même instance avec un port
+  différent) devant lequel `main` passerait avant un déploiement manuel vers
+  prod.
+- **Pas de rollback automatisé.** Le double tag (`:latest` + `:<git-sha>`,
+  § 3.5) rend un rollback *possible* — repousser manuellement l'ancien tag
+  en `:latest`, ou adapter `redeploy.sh` pour accepter un tag en paramètre —
+  mais rien dans le pipeline ne le déclenche automatiquement en cas de
+  problème détecté après coup.
+- **Pas de vérification post-déploiement dans le pipeline lui-même.** Le job
+  `deploy` confirme que la commande SSM a réussi côté instance, pas que
+  l'application répond correctement derrière l'ALB. La détection d'un
+  déploiement cassé retombe sur les alarmes CloudWatch (§ 2.3), donc avec
+  un délai (jusqu'à plusieurs minutes), pas sur le pipeline en temps réel. Piste :
+  ajouter un `curl` sur `/actuator/health` via l'ALB à la fin du job `deploy`.
+- **Pas de porte d'approbation manuelle avant prod.** Tout push sur `main` qui
+  passe les gates automatiques (tests, qualité, sécurité) est déployé sans
+  intervention humaine. Acceptable pour un projet à cette échelle, mais un
+  environnement GitHub avec *required reviewers* serait la façon la plus
+  simple de l'ajouter sans réécrire le pipeline.
+- **Coupure de service pendant le déploiement.** `docker compose up -d
+  backend` sur une instance unique implique un arrêt/redémarrage du conteneur
+  — quelques secondes d'indisponibilité à chaque déploiement. Conséquence
+  directe de l'architecture mono-instance retenue (§ 1.3), pas un choix
+  propre au pipeline.
+- **SonarQube auto-hébergé = point individuel de défaillance du pipeline.**
+  Si l'instance Sonar est indisponible, le job `quality` échoue et bloque
+  `package`/`deploy`, même si le code lui-même est sain. Compromis assumé du
+  choix auto-hébergé plutôt que SonarCloud.
 
 ---
 
 ## Limites connues et pistes d'amélioration (transverses)
 
-1. **API sans authentification (R1/R2, cf. Mission 2 § 2.4)** : le risque le
-   plus grave du projet, documenté et volontairement non corrigé faute de
-   temps. Priorité absolue avant toute mise en production réelle.
+1. **API sans authentification (R1/R2, § 2.4)** : le risque le plus grave du
+   projet, documenté et volontairement non corrigé faute de temps. Priorité
+   absolue avant toute mise en production réelle.
 2. **HTTP seulement** : pas de nom de domaine → pas de certificat ACM. En prod :
    domaine + ACM + listener HTTPS (443) + redirection 80→443.
 3. **Pas de haute disponibilité** : une instance, une AZ pour le compute.
@@ -464,21 +435,15 @@ pistes d'amélioration.
 6. **MQTT anonyme** (`mosquitto.conf`) : sans risque tant que MQTT reste
    désactivé côté cloud, mais à corriger (auth par capteur) avant toute
    exposition publique du broker.
-7. **GitHub vs GitLab** : le sujet attend un rendu GitLab ; le dev est sur
-   GitHub et l'OIDC est configuré pour GitHub Actions. À reprendre avant le
-   rendu final (adapter l'issuer OIDC et la condition `sub` au format GitLab).
 
 ---
 
 ## Retour d'expérience sur l'usage des outils d'assistance (IA)
 
-> *Section à personnaliser — trame honnête basée sur la démarche suivie.*
-
 - **Apports** : accélération de l'écriture du Terraform et des policies IAM
   (syntaxe, ARN, conditions), et surtout aide à **expliciter les compromis**
   (NAT vs SG, EC2 vs ECS, RDS vs conteneur) plutôt qu'à produire du code brut.
-- **Limites** : l'assistant ne connaît pas le contexte implicite (budget réel,
-  choix GitHub/GitLab, périmètre attendu) — chaque décision structurante a dû
+- **Limites** : l'assistant ne connaît pas le contexte implicite (budget réel, périmètre attendu) — chaque décision structurante a dû
   être tranchée par moi, pas déléguée. Quelques détails techniques ont nécessité
   correction (descriptions de Security Group refusant les accents/apostrophes).
 - **Posture adoptée** : validation systématique avant tout `apply` sur le compte
