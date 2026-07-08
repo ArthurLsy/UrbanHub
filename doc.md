@@ -16,7 +16,7 @@ Documentation et justification des choix techniques pour l'industrialisation
 |---|---|---|
 | Infrastructure cloud | VPC, EC2, ALB, ECR, IAM, secrets, IaC | Réalisée, infra active |
 | Sécurité | Risques, durcissement, supervision | Analyse de risques + supervision faites ; une vulnérabilité critique (API sans authentification) documentée mais volontairement non corrigée |
-| Pipeline CI/CD | build/test/qualité/sécurité/déploiement | Workflow écrit, pas encore exécuté en conditions réelles |
+| Pipeline CI/CD | build/test/qualité/sécurité/déploiement | Exécuté en conditions réelles : build, tests, sécurité, publication et déploiement passés |
 
 ---
 
@@ -43,7 +43,7 @@ Documentation et justification des choix techniques pour l'industrialisation
   - [2.2 Mesures de sécurité déjà en place](#22-mesures-de-sécurité-déjà-en-place)
   - [2.3 Plan de supervision](#23-plan-de-supervision)
   - [2.4 Le risque non corrigé : API totalement ouverte (R1 + R2)](#24-le-risque-non-corrigé--api-totalement-ouverte-r1--r2)
-- [3. Pipeline CI/CD (workflow écrit, non encore exécuté en réel)](#3-pipeline-cicd--workflow-écrit-non-encore-exécuté-en-réel)
+- [3. Pipeline CI/CD](#3-pipeline-cicd)
   - [3.1 Outils mobilisés et raisons de leur sélection](#31-outils-mobilisés-et-raisons-de-leur-sélection)
   - [3.2 Découpage en 6 jobs](#32-découpage-en-6-jobs)
   - [3.3 Authentification AWS : OIDC, pas de secret statique](#33-authentification-aws--oidc-pas-de-secret-statique)
@@ -291,7 +291,7 @@ Point à traiter en priorité absolue avant toute mise en production réelle.
 
 ---
 
-## 3. Pipeline CI/CD (workflow écrit, non encore exécuté en réel)
+## 3. Pipeline CI/CD
 
 Workflow : [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml).
 
