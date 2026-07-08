@@ -433,6 +433,20 @@ signifie concrètement :
 | `package` | Onglet **Security → Code scanning alerts**, catégorie `trivy-image` + résumé de job (`GITHUB_STEP_SUMMARY`, tag de l'image publiée) | Même logique que `security`, appliquée à l'image finale plutôt qu'au code source — une vulnérabilité peut apparaître ici sans être apparue en amont si elle vient de l'image de base Docker |
 | `deploy` | Résumé de job (instance ciblée, ID de commande SSM) ; en cas d'échec, le job affiche directement `StandardErrorContent` de la commande SSM dans le log | Un échec ici veut dire que la commande a bien été envoyée mais a échoué **sur l'instance** (ex : image introuvable, `docker compose` en erreur) — pas un problème réseau/permissions (sinon `send-command` lui-même aurait échoué plus tôt) |
 
+**Résultats obtenus lors d'une exécution réelle du pipeline :**
+
+![Rapport de tests JUnit publié en annotation par le job test](doc_assets/tests.png)
+
+*Job `test` : 115 tests exécutés, 115 passés, 0 échec.*
+
+![Liste des alertes de sécurité dans l'onglet Security -> Code scanning](doc_assets/sommaire_secu.png)
+
+*Onglet **Security → Code scanning** : les alertes publiées par les jobs `security`/`package` (Trivy), navigables par sévérité, outil et branche. 64 alertes `High` ouvertes à date, essentiellement des dépendances tierces (`jackson-databind`, `pgjdbc`, `p11-kit`, `libexpat`) — non bloquantes (seul `CRITICAL` bloque le pipeline, § 3.5), mais à trier et corriger dans le temps.*
+
+![Détail d'une alerte de sécurité individuelle](doc_assets/detail_secu.png)
+
+*Détail d'une alerte : package concerné, version installée, CVE, sévérité et version corrigée — assez d'information pour trancher un correctif sans quitter GitHub.*
+
 ### 3.9 Limites et pistes d'amélioration (spécifiques au pipeline, contexte production)
 
 - **Pas d'environnement de staging.** `main` déploie directement et uniquement
