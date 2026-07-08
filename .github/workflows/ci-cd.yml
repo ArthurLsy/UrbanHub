@@ -1,39 +1,24 @@
 name: CI/CD
 
-# Construction, tests, qualité, sécurité systématiques sur toute branche/PR.
-# Publication de l'image et déploiement réservés à la branche main (même
-# logique que l'ancien .gitlab-ci.yml : "only: main" pour le déploiement).
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
 
-# Empêche deux déploiements concurrents de se marcher dessus sur la même
-# instance (ex: deux push rapprochés sur main).
 concurrency:
   group: urbanhub-deploy-${{ github.ref }}
   cancel-in-progress: false
 
-# Permissions minimales par défaut ; id-token: write n'est accordé qu'aux
-# jobs qui en ont réellement besoin (package, deploy), pas à tout le workflow.
 permissions:
   contents: read
 
 env:
   AWS_REGION: eu-west-3
-  # Pas un secret : c'est un identifiant de rôle IAM, pas une credential.
-  # La confiance vient de la condition OIDC (repo + branche), pas du secret.
   AWS_ROLE_ARN: arn:aws:iam::627403012708:role/urbanhub/role-urbanhub-ci
   ECR_REPOSITORY: urbanhub-backend
 
 jobs:
-  # ---------------------------------------------------------------------
-  # 1. Construction : compile l'application, garantit la reproductibilité
-  #    du build. Étape séparée du "test" pour un pipeline lisible en
-  #    stages, même si gradle recompile aussi côté "test" (léger doublon
-  #    assumé pour la clarté du séquençage, cf. doc.md).
-  # ---------------------------------------------------------------------
   build:
     runs-on: ubuntu-latest
     steps:
@@ -54,10 +39,6 @@ jobs:
           path: build/libs/*.jar
           retention-days: 7
 
-  # ---------------------------------------------------------------------
-  # 2. Tests : résultats exploitables et tracables dans l'onglet Actions
-  #    (résumé + annotations), pas seulement un exit code.
-  # ---------------------------------------------------------------------
   test:
     runs-on: ubuntu-latest
     needs: build
@@ -88,13 +69,6 @@ jobs:
             build/reports/jacoco/
           retention-days: 7
 
-  # ---------------------------------------------------------------------
-  # 3. Qualité : SonarQube auto-hébergé (URL/token fournis par le
-  #    dépôt). Le quality gate est déjà configuré à "wait" dans
-  #    build.gradle : la tâche gradle échoue elle-même si le gate est KO,
-  #    ce qui fait échouer ce job et bloque le déploiement en aval.
-  #    Prérequis : secrets SONAR_HOST_URL et SONAR_TOKEN (voir doc.md).
-  # ---------------------------------------------------------------------
   quality:
     runs-on: ubuntu-latest
     needs: test
@@ -102,7 +76,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # historique complet requis par l'analyse Sonar (blame, new code period)
+          fetch-depth: 0
 
       - uses: actions/setup-java@v4
         with:
@@ -121,18 +95,11 @@ jobs:
             -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
             -Dsonar.token=${{ secrets.SONAR_TOKEN }}
 
-  # ---------------------------------------------------------------------
-  # 4. Sécurité : scan des dépendances (CVE connues) avec Trivy. Résultats
-  #    toujours publiés dans l'onglet Security (même si le job échoue
-  #    ensuite), le pipeline est bloqué uniquement sur du CRITICAL.
-  #    Indépendant de build/test : tourne en parallèle, ne ralentit pas
-  #    le pipeline.
-  # ---------------------------------------------------------------------
   security:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      security-events: write # requis pour publier le SARIF dans l'onglet Security
+      security-events: write
     steps:
       - uses: actions/checkout@v4
 
@@ -150,6 +117,7 @@ jobs:
         if: always()
         with:
           sarif_file: trivy-results.sarif
+          category: trivy-fs
 
       - name: Trivy (gate bloquant sur CRITICAL)
         uses: aquasecurity/trivy-action@v0.36.0
@@ -159,13 +127,6 @@ jobs:
           severity: "CRITICAL"
           exit-code: "1"
 
-  # ---------------------------------------------------------------------
-  # 5. Packaging : construit l'artefact déployable (image Docker, via
-  #    Dockerfile.prod) et le publie sur ECR. Authentification AWS par
-  #    OIDC : aucune clé statique en secret GitHub.
-  #    Deux tags poussés sur la même image : ":latest" (mobile, utilisé
-  #    au déploiement) et ":<git-sha>" (fixe, traçabilité/rollback).
-  # ---------------------------------------------------------------------
   package:
     runs-on: ubuntu-latest
     needs: [test, quality, security]
@@ -173,6 +134,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      security-events: write
     outputs:
       image_tag: ${{ github.sha }}
     steps:
@@ -193,7 +155,23 @@ jobs:
             -t "${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest" \
             .
 
-      - name: Scan de l'image avant publication (gate bloquant sur CRITICAL)
+      - name: Scan de l'image (rapport complet, non bloquant)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: "${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
+          format: sarif
+          output: trivy-image-results.sarif
+          severity: "CRITICAL,HIGH"
+          exit-code: "0"
+
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-image-results.sarif
+          category: trivy-image
+
+      - name: Scan de l'image (gate bloquant sur CRITICAL)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
@@ -208,11 +186,6 @@ jobs:
           echo "### Image publiée" >> "$GITHUB_STEP_SUMMARY"
           echo "\`${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
 
-  # ---------------------------------------------------------------------
-  # 6. Déploiement : déclenché via SSM SendCommand (pas de SSH). L'instance
-  #    cible est retrouvée dynamiquement par tag (pas d'ID en dur, qui
-  #    changerait à chaque recréation Terraform de l'infra).
-  # ---------------------------------------------------------------------
   deploy:
     runs-on: ubuntu-latest
     needs: package
@@ -247,8 +220,6 @@ jobs:
             --query "Command.CommandId" --output text)
           echo "Commande SSM : $COMMAND_ID"
 
-          # Attente active du résultat (timeout ~2 minutes) : le job doit
-          # échouer si le redéploiement échoue, pas juste "avoir envoyé la commande".
           for i in $(seq 1 24); do
             STATUS=$(aws ssm get-command-invocation \
               --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" \
