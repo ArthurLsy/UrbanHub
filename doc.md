@@ -14,9 +14,47 @@ Documentation et justification des choix techniques pour l'industrialisation
 
 | Domaine | Périmètre | État |
 |---|---|---|
-| Infrastructure cloud | VPC, EC2, ALB, ECR, IAM, secrets, IaC | ✅ Réalisée, infra active |
-| Sécurité | Risques, durcissement, supervision | 🟡 Analyse de risques + supervision faites ; une vulnérabilité critique (API sans authentification) documentée mais volontairement non corrigée |
-| Pipeline CI/CD | build/test/qualité/sécurité/déploiement | ✅ Workflow écrit, pas encore exécuté en conditions réelles |
+| Infrastructure cloud | VPC, EC2, ALB, ECR, IAM, secrets, IaC | Réalisée, infra active |
+| Sécurité | Risques, durcissement, supervision | Analyse de risques + supervision faites ; une vulnérabilité critique (API sans authentification) documentée mais volontairement non corrigée |
+| Pipeline CI/CD | build/test/qualité/sécurité/déploiement | Workflow écrit, pas encore exécuté en conditions réelles |
+
+---
+
+## Sommaire
+
+- [1. Infrastructure cloud](#1-infrastructure-cloud)
+  - [1.1 Architecture générale](#11-architecture-générale)
+  - [1.2 Organisation de l'IaC — 3 modules Terraform](#12-organisation-de-liac--3-modules-terraform)
+  - [1.3 Choix d'architecture et justifications](#13-choix-darchitecture-et-justifications)
+    - [EC2 + `docker compose`, pas ECS/Fargate/Kubernetes](#ec2--docker-compose-pas-ecsfargatekubernetes)
+    - [TimescaleDB en conteneur, pas RDS](#timescaledb-en-conteneur-pas-rds)
+    - [Subnets publics + Security Groups, sans NAT Gateway](#subnets-publics--security-groups-sans-nat-gateway)
+    - [Administration et déploiement par SSM, pas SSH](#administration-et-déploiement-par-ssm-pas-ssh)
+  - [1.4 IAM — identités et accès](#14-iam--identités-et-accès)
+    - [OIDC plutôt qu'une clé d'accès statique dans le CI](#oidc-plutôt-quune-clé-daccès-statique-dans-le-ci)
+    - [Le rôle CI n'a aucun droit IAM](#le-rôle-ci-na-aucun-droit-iam)
+    - [Moindre privilège appliqué partout](#moindre-privilège-appliqué-partout)
+  - [1.5 Gestion des secrets](#15-gestion-des-secrets)
+  - [1.6 Analyse performances / coût](#16-analyse-performances--coût)
+  - [1.7 Corrections apportées lors de la mise en place du pipeline CI/CD](#17-corrections-apportées-lors-de-la-mise-en-place-du-pipeline-cicd)
+  - [1.8 Vérifications effectuées](#18-vérifications-effectuées)
+- [2. Sécurité](#2-sécurité)
+  - [2.1 Analyse et classification des risques](#21-analyse-et-classification-des-risques)
+  - [2.2 Mesures de sécurité déjà en place](#22-mesures-de-sécurité-déjà-en-place)
+  - [2.3 Plan de supervision](#23-plan-de-supervision)
+  - [2.4 Le risque non corrigé : API totalement ouverte (R1 + R2)](#24-le-risque-non-corrigé--api-totalement-ouverte-r1--r2)
+- [3. Pipeline CI/CD (workflow écrit, non encore exécuté en réel)](#3-pipeline-cicd--workflow-écrit-non-encore-exécuté-en-réel)
+  - [3.1 Outils mobilisés et raisons de leur sélection](#31-outils-mobilisés-et-raisons-de-leur-sélection)
+  - [3.2 Découpage en 6 jobs](#32-découpage-en-6-jobs)
+  - [3.3 Authentification AWS : OIDC, pas de secret statique](#33-authentification-aws--oidc-pas-de-secret-statique)
+  - [3.4 Artefact déployable : `Dockerfile.prod`](#34-artefact-déployable--dockerfileprod)
+  - [3.5 Sécurité (DevSecOps) dans le pipeline](#35-sécurité-devsecops-dans-le-pipeline)
+  - [3.6 Déploiement sans SSH, instance retrouvée dynamiquement](#36-déploiement-sans-ssh-instance-retrouvée-dynamiquement)
+  - [3.7 Prérequis (secrets et variables GitHub)](#37-prérequis-secrets-et-variables-github)
+  - [3.8 Interprétation des résultats produits](#38-interprétation-des-résultats-produits)
+  - [3.9 Limites et pistes d'amélioration (spécifiques au pipeline, contexte production)](#39-limites-et-pistes-damélioration-spécifiques-au-pipeline-contexte-production)
+- [Limites connues et pistes d'amélioration (transverses)](#limites-connues-et-pistes-damélioration-transverses)
+- [Retour d'expérience sur l'usage des outils d'assistance (IA)](#retour-dexpérience-sur-lusage-des-outils-dassistance-ia)
 
 ---
 
@@ -253,7 +291,7 @@ Point à traiter en priorité absolue avant toute mise en production réelle.
 
 ---
 
-## 3. Pipeline CI/CD ✅ (workflow écrit, non encore exécuté en réel)
+## 3. Pipeline CI/CD (workflow écrit, non encore exécuté en réel)
 
 Workflow : [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml).
 
