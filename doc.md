@@ -375,14 +375,17 @@ chaque build — corrigé en `MUTABLE` (§ 1.7).
 
 ### 3.5 Sécurité (DevSecOps) dans le pipeline
 
-- **Scan de dépendances** (job `security`, Trivy `fs`) : rapport complet
-  toujours publié dans l'onglet *Security* du repo (SARIF), même si le job
-  échoue ensuite ; un second passage, bloquant uniquement sur `CRITICAL`,
-  fait échouer le pipeline. Sévérité `HIGH` remontée mais non bloquante — un
+- **Scan de dépendances** (job `security`, Trivy `fs`) et **scan de l'image**
+  (job `package`, Trivy `image`, sur l'image buildée juste avant de la
+  pousser sur ECR) suivent le même schéma en deux passes : un premier scan
+  non bloquant (`CRITICAL,HIGH`) publie systématiquement son rapport complet
+  au format SARIF dans l'onglet *Security → Code scanning* du repo, même si
+  le job échoue ensuite ; un second passage, bloquant uniquement sur
+  `CRITICAL`, fait échouer le pipeline. Les deux uploads SARIF sont
+  distingués par catégorie (`trivy-fs` / `trivy-image`) pour rester
+  consultables séparément. Sévérité `HIGH` remontée mais non bloquante — un
   pipeline qui bloque sur chaque `HIGH` finit par ne plus être regardé.
-- **Scan de l'image** (job `package`, Trivy `image`) : même logique, sur
-  l'image buildée juste avant de la pousser sur ECR — double contrôle avec le
-  scan `scan_on_push` déjà configuré côté registre.
+  Double contrôle avec le scan `scan_on_push` déjà configuré côté registre ECR.
 - **Quality gate Sonar bloquant** : `sonar.qualitygate.wait=true` (déjà dans
   `build.gradle`) fait échouer la tâche Gradle — donc le job — si le gate est
   rouge, ce qui bloque `package`/`deploy` en aval.
@@ -426,8 +429,8 @@ signifie concrètement :
 | `build` | Log du job (onglet *Actions*) | Erreur de compilation — le code ne compile pas, rien d'autre à interpréter |
 | `test` | Annotations directement sur le diff (ajoutées par `action-junit-report`) + artefact `test-and-coverage-reports` (rapport HTML complet + JaCoCo) | Un test rouge = régression fonctionnelle réelle, pas un flake présumé : le pipeline ne retry aucun test automatiquement |
 | `quality` | Log du job pour le verdict quality gate ; détail complet (bugs, code smells, duplication, couverture par fichier) sur l'instance SonarQube elle-même (`SONAR_HOST_URL`), projet `UrbanHub` | Le job échoue **seulement** si le *quality gate* est rouge (seuils définis côté Sonar, pas dans le workflow) — un avertissement Sonar qui ne fait pas échouer le gate n'échoue pas le job |
-| `security` | Onglet **Security → Code scanning alerts** du repo (résultats SARIF complets, y compris `HIGH` non bloquant) ; log du job pour le détail du gate `CRITICAL` | Une `CRITICAL` fait échouer le job : identifier la dépendance concernée dans l'alerte, vérifier si un correctif existe (montée de version) avant de rouvrir une PR. Un `HIGH` visible dans Security mais job vert = à traiter mais pas bloquant |
-| `package` | Log du job (étape "Scan de l'image") + résumé de job (`GITHUB_STEP_SUMMARY`, tag de l'image publiée) | Même logique que `security`, appliquée à l'image finale plutôt qu'au code source — une vulnérabilité peut apparaître ici sans être apparue en amont si elle vient de l'image de base Docker |
+| `security` | Onglet **Security → Code scanning alerts** du repo, catégorie `trivy-fs` (résultats SARIF complets, y compris `HIGH` non bloquant) ; log du job pour le détail du gate `CRITICAL` | Une `CRITICAL` fait échouer le job : identifier la dépendance concernée dans l'alerte, vérifier si un correctif existe (montée de version) avant de rouvrir une PR. Un `HIGH` visible dans Security mais job vert = à traiter mais pas bloquant |
+| `package` | Onglet **Security → Code scanning alerts**, catégorie `trivy-image` + résumé de job (`GITHUB_STEP_SUMMARY`, tag de l'image publiée) | Même logique que `security`, appliquée à l'image finale plutôt qu'au code source — une vulnérabilité peut apparaître ici sans être apparue en amont si elle vient de l'image de base Docker |
 | `deploy` | Résumé de job (instance ciblée, ID de commande SSM) ; en cas d'échec, le job affiche directement `StandardErrorContent` de la commande SSM dans le log | Un échec ici veut dire que la commande a bien été envoyée mais a échoué **sur l'instance** (ex : image introuvable, `docker compose` en erreur) — pas un problème réseau/permissions (sinon `send-command` lui-même aurait échoué plus tôt) |
 
 ### 3.9 Limites et pistes d'amélioration (spécifiques au pipeline, contexte production)
